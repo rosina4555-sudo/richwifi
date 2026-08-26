@@ -197,27 +197,37 @@ const closeCheckout = () => {
     <!-- Footer: slim bar on mobile, full footer on desktop -->
     <footer class="shrink-0 border-t border-brand/10 bg-surface">
       <!-- Mobile -->
-      <div class="flex items-center justify-between gap-3 px-4 py-2 md:hidden">
-        <a href="#" aria-label="RichWiFi home" class="shrink-0">
-          <img
-            :src="logo"
-            alt="RichWiFi"
-            class="h-4 w-auto max-w-24 object-contain"
-            draggable="false"
-          />
-        </a>
-        <div class="flex items-center gap-3">
-          <p class="text-[10px] font-medium text-brand-dark/40">
-            © 2026
-          </p>
-          <a
-            href="#/admin"
-            class="rounded-md px-1.5 py-0.5 text-[9px] font-bold text-brand-dark/25 transition hover:bg-brand/5 hover:text-brand-dark/50"
-            title="Admin"
-          >
-            •••
+      <div class="space-y-3 px-4 py-4 md:hidden">
+        <div class="flex items-center justify-between">
+          <a href="#" aria-label="RichWiFi home" class="shrink-0">
+            <img
+              :src="logo"
+              alt="RichWiFi"
+              class="h-4 w-auto max-w-24 object-contain"
+              draggable="false"
+            />
           </a>
+          <span class="text-[10px] font-medium text-brand-dark/35">© 2026</span>
         </div>
+        <div class="flex gap-6">
+          <div>
+            <p class="text-[10px] font-bold tracking-widest text-brand/60 uppercase">Explore</p>
+            <ul class="mt-1 space-y-1">
+              <li><a href="#" class="text-[11px] font-medium text-brand-dark/50 transition hover:text-accent">Locations</a></li>
+              <li><a href="#" class="text-[11px] font-medium text-brand-dark/50 transition hover:text-accent">My Tickets</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="text-[10px] font-bold tracking-widest text-brand/60 uppercase">Support</p>
+            <ul class="mt-1 space-y-1">
+              <li><a href="mailto:support@richwifi.com" class="text-[11px] font-medium text-brand-dark/50 transition hover:text-accent">Email Us</a></li>
+              <li><a href="tel:+1234567890" class="text-[11px] font-medium text-brand-dark/50 transition hover:text-accent">Call Us</a></li>
+            </ul>
+          </div>
+        </div>
+        <p class="border-t border-brand/10 pt-2 text-center text-[10px] text-brand-dark/35">
+          RichWiFi · Community Hotspot Network · Stay connected, together.
+        </p>
       </div>
 
       <!-- Desktop -->
@@ -244,7 +254,6 @@ const closeCheckout = () => {
                 <li><a href="#" class="transition-colors hover:text-accent">Locations</a></li>
                 <li><a href="#" class="transition-colors hover:text-accent">My Tickets</a></li>
                 <li><a href="#" class="transition-colors hover:text-accent">Support</a></li>
-                <li><a href="#/admin" class="transition-colors hover:text-accent">Admin</a></li>
               </ul>
             </div>
             <div>
