@@ -1,0 +1,166 @@
+<script setup>
+import { ref, computed } from 'vue'
+import LocationCard from '../components/LocationCard.vue'
+import { locations } from '../data/locations'
+
+const searchQuery = ref('')
+const selectedLocation = ref(null)
+
+const filteredLocations = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return locations
+  return locations.filter(
+    (l) =>
+      l.name.toLowerCase().includes(q) ||
+      l.address.toLowerCase().includes(q),
+  )
+})
+
+const handleBuy = (location) => {
+  selectedLocation.value = location
+}
+</script>
+
+<template>
+  <!-- One-screen app shell on mobile; normal scrolling page on md+ -->
+  <div
+    class="flex h-dvh flex-col overflow-hidden text-brand-dark md:h-auto md:min-h-screen md:overflow-visible"
+  >
+    <!-- Header -->
+    <header class="shrink-0 border-b border-brand/10 bg-surface/95 backdrop-blur-md">
+      <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:h-16">
+        <a href="#" class="flex items-center gap-2.5">
+          <div
+            class="clay-sm flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-accent"
+          >
+            <svg
+              class="h-4.5 w-4.5 text-white"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+              <circle cx="12" cy="19.5" r="1" fill="currentColor" stroke="none" />
+            </svg>
+          </div>
+          <span class="font-heading text-lg font-bold tracking-tight text-brand sm:text-xl">
+            RichWiFi
+          </span>
+        </a>
+        <nav class="flex items-center gap-4 text-sm font-semibold sm:gap-6">
+          <a href="#" class="text-brand transition-colors hover:text-accent">Home</a>
+          <a href="#" class="text-brand-dark/50 transition-colors hover:text-accent">My Tickets</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col px-4 pt-4 pb-3 md:py-10">
+      <!-- Compact clay hero -->
+      <section
+        class="relative isolate shrink-0 overflow-hidden rounded-3xl bg-gradient-to-br from-brand-dark via-brand to-accent px-5 py-5 text-center text-white sm:px-8 sm:py-10 md:rounded-[2rem]"
+      >
+        <div
+          class="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,#ffffff20,transparent_55%)]"
+        ></div>
+        <div
+          class="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent"
+        ></div>
+
+        <h1
+          class="font-heading text-xl leading-tight font-bold tracking-tight text-balance sm:text-3xl lg:text-4xl"
+        >
+          Community Hotspot Network
+        </h1>
+        <p class="mx-auto mt-1.5 hidden max-w-md text-sm leading-relaxed text-white/85 sm:block">
+          Secure, high-speed Wi-Fi tokens for every nearby location.
+          Daily, weekly &amp; monthly plans — connect instantly.
+        </p>
+
+        <form class="mx-auto mt-3.5 flex w-full max-w-md gap-2 sm:mt-5 sm:gap-3" @submit.prevent>
+          <div class="relative flex-1">
+            <svg
+              class="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-white/60"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+            <input
+              v-model="searchQuery"
+              type="search"
+              placeholder="Search locations…"
+              class="w-full rounded-2xl border border-white/15 bg-black/15 py-2.5 pr-4 pl-10 text-sm font-medium text-white placeholder:text-white/55 focus:border-white/35 focus:outline-none sm:py-3"
+            />
+          </div>
+          <button
+            type="submit"
+            class="clay-btn-light shrink-0 rounded-2xl bg-surface px-5 py-2.5 text-sm font-bold text-brand sm:px-7 sm:py-3"
+          >
+            Search
+          </button>
+        </form>
+      </section>
+
+      <!-- Locations -->
+      <section class="flex min-h-0 flex-1 flex-col mt-4 sm:mt-8">
+        <div class="mb-2.5 flex shrink-0 items-end justify-between gap-4 sm:mb-5">
+          <h2 class="font-heading text-base font-bold tracking-tight text-brand sm:text-xl lg:text-2xl">
+            Available Locations
+          </h2>
+          <p class="text-xs font-medium text-brand-dark/45 sm:text-sm">
+            {{ filteredLocations.length }}
+            {{ filteredLocations.length === 1 ? 'spot' : 'spots' }} near you
+          </p>
+        </div>
+
+        <!-- Mobile: swipeable snap carousel that fits the screen -->
+        <div
+          v-if="filteredLocations.length"
+          class="hide-scrollbar -mx-4 flex min-h-0 flex-1 snap-x snap-mandatory items-stretch gap-4 overflow-x-auto scroll-p-6 px-4 pb-1 md:static md:mx-0 md:grid md:flex-none md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0 lg:grid-cols-3 lg:gap-6"
+        >
+          <div
+            v-for="(location, i) in filteredLocations"
+            :key="location.id"
+            class="w-[82vw] max-w-[22rem] shrink-0 snap-center last:snap-end md:w-full md:max-w-none md:shrink"
+          >
+            <LocationCard :location="location" :featured="i === 0" @buy="handleBuy" />
+            <div
+              v-if="i === 0 && filteredLocations.length > 1"
+              class="mt-2 flex items-center justify-center gap-1.5 text-brand-dark/30 md:hidden"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
+              </svg>
+              <span class="text-[11px] font-semibold tracking-wide uppercase">Swipe for more spots</span>
+            </div>
+          </div>
+        </div>
+
+        <div
+          v-else
+          class="clay flex flex-1 flex-col items-center justify-center rounded-3xl border border-brand/10 bg-surface py-10 text-center md:flex-none"
+        >
+          <p class="font-heading text-base font-bold text-brand-dark/70">No locations found</p>
+          <p class="mt-1 text-sm text-brand-dark/50">Try a different name or area.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="hidden shrink-0 border-t border-brand/10 bg-surface py-6 md:block">
+      <div class="mx-auto max-w-6xl space-y-1 px-4 text-center">
+        <p class="font-heading text-xs font-bold text-brand-dark/70">RichWiFi</p>
+        <p class="text-xs text-brand-dark/45">
+          © 2026 · Community Hotspot Network · Stay connected, together.
+        </p>
+      </div>
+    </footer>
+  </div>
+</template>
