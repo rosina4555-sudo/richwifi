@@ -66,7 +66,7 @@ const closeCheckout = () => {
 <template>
   <!-- One-screen app shell on mobile; normal scrolling page on md+ -->
   <div
-    class="flex h-dvh flex-col overflow-hidden text-brand-dark md:h-auto md:min-h-screen md:overflow-visible"
+    class="flex flex-col text-brand-dark min-h-screen"
   >
     <!-- Header -->
     <header class="shrink-0 border-b border-brand/10 bg-surface/95 backdrop-blur-md">
@@ -86,7 +86,7 @@ const closeCheckout = () => {
       </div>
     </header>
 
-    <main class="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col px-4 pt-4 pb-3 md:py-10">
+    <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-8">
       <!-- Compact clay hero -->
       <section
         class="relative isolate shrink-0 overflow-hidden rounded-3xl bg-gradient-to-br from-brand-dark via-brand to-accent px-5 py-5 text-center text-white sm:px-8 sm:py-10 md:rounded-[2rem]"
@@ -138,7 +138,7 @@ const closeCheckout = () => {
       </section>
 
       <!-- Locations -->
-      <section class="flex min-h-0 flex-1 flex-col mt-4 sm:mt-8">
+      <section class="mt-4 sm:mt-8">
         <div class="mb-2.5 flex shrink-0 items-end justify-between gap-4 sm:mb-5">
           <h2 class="font-heading text-base font-bold tracking-tight text-brand sm:text-xl lg:text-2xl">
             Available Locations
@@ -152,7 +152,7 @@ const closeCheckout = () => {
         <!-- Mobile: swipeable snap carousel that fits the screen -->
         <div            v-if="filteredLocations.length"
           ref="carouselEl"
-          class="hide-scrollbar -mx-4 flex min-h-0 snap-x snap-mandatory items-start gap-4 overflow-x-auto scroll-p-6 px-4 pb-1 md:static md:mx-0 md:grid md:flex-none md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0 lg:grid-cols-3 lg:gap-6"
+          class="hide-scrollbar -mx-4 flex snap-x snap-mandatory items-start gap-4 overflow-x-auto scroll-p-6 px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 lg:grid-cols-3 lg:gap-6"
           @scroll.passive="onCarouselScroll"
         >
           <div
@@ -197,36 +197,36 @@ const closeCheckout = () => {
     <!-- Footer: slim bar on mobile, full footer on desktop -->
     <footer class="shrink-0 border-t border-brand/10 bg-surface">
       <!-- Mobile -->
-      <div class="space-y-3 px-4 py-4 md:hidden">
-        <div class="flex items-center justify-between">
-          <a href="#" aria-label="RichWiFi home" class="shrink-0">
-            <img
-              :src="logo"
-              alt="RichWiFi"
-              class="h-4 w-auto max-w-24 object-contain"
-              draggable="false"
-            />
-          </a>
-          <span class="text-[10px] font-medium text-brand-dark/35">© 2026</span>
-        </div>
-        <div class="flex gap-6">
+      <div class="px-4 pt-6 pb-5 md:hidden">
+        <a href="#" aria-label="RichWiFi home">
+          <img
+            :src="logo"
+            alt="RichWiFi"
+            class="h-5 w-auto max-w-28 object-contain"
+            draggable="false"
+          />
+        </a>
+        <p class="mt-1 text-[10px] font-medium text-brand-dark/40">
+          © 2026 RichWiFi · Community Hotspot Network
+        </p>
+        <div class="mt-4 grid grid-cols-2 gap-4">
           <div>
-            <p class="text-[10px] font-bold tracking-widest text-brand/60 uppercase">Explore</p>
-            <ul class="mt-1 space-y-1">
-              <li><a href="#" class="text-[11px] font-medium text-brand-dark/50 transition hover:text-accent">Locations</a></li>
-              <li><a href="#" class="text-[11px] font-medium text-brand-dark/50 transition hover:text-accent">My Tickets</a></li>
+            <p class="text-[10px] font-bold tracking-widest text-brand/50 uppercase">Quick Links</p>
+            <ul class="mt-1.5 space-y-1.5">
+              <li><a href="#" class="text-[11px] font-medium text-brand-dark/55 transition hover:text-accent">Locations</a></li>
+              <li><a href="#" class="text-[11px] font-medium text-brand-dark/55 transition hover:text-accent">My Tickets</a></li>
             </ul>
           </div>
           <div>
-            <p class="text-[10px] font-bold tracking-widest text-brand/60 uppercase">Support</p>
-            <ul class="mt-1 space-y-1">
-              <li><a href="mailto:support@richwifi.com" class="text-[11px] font-medium text-brand-dark/50 transition hover:text-accent">Email Us</a></li>
-              <li><a href="tel:+1234567890" class="text-[11px] font-medium text-brand-dark/50 transition hover:text-accent">Call Us</a></li>
+            <p class="text-[10px] font-bold tracking-widest text-brand/50 uppercase">Support</p>
+            <ul class="mt-1.5 space-y-1.5">
+              <li><a href="mailto:support@richwifi.com" class="text-[11px] font-medium text-brand-dark/55 transition hover:text-accent">Email Us</a></li>
+              <li><a href="tel:+1234567890" class="text-[11px] font-medium text-brand-dark/55 transition hover:text-accent">Call Us</a></li>
             </ul>
           </div>
         </div>
-        <p class="border-t border-brand/10 pt-2 text-center text-[10px] text-brand-dark/35">
-          RichWiFi · Community Hotspot Network · Stay connected, together.
+        <p class="mt-4 border-t border-brand/10 pt-3 text-[10px] font-medium text-brand-dark/35">
+          Stay connected, together.
         </p>
       </div>
 
