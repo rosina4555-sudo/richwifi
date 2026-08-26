@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import LocationCard from '../components/LocationCard.vue'
 import { locations } from '../data/locations'
+import logo from '../assets/logo.png'
 
 const searchQuery = ref('')
 const selectedLocation = ref(null)
@@ -60,27 +61,13 @@ const handleBuy = (location) => {
     <!-- Header -->
     <header class="shrink-0 border-b border-brand/10 bg-surface/95 backdrop-blur-md">
       <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:h-16">
-        <a href="#" class="flex items-center gap-2.5">
-          <div
-            class="clay-sm flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-accent"
-          >
-            <svg
-              class="h-4.5 w-4.5 text-white"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M5 12.55a11 11 0 0 1 14.08 0" />
-              <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-              <circle cx="12" cy="19.5" r="1" fill="currentColor" stroke="none" />
-            </svg>
-          </div>
-          <span class="font-heading text-lg font-bold tracking-tight text-brand sm:text-xl">
-            RichWiFi
-          </span>
+        <a href="#" class="flex shrink-0 items-center" aria-label="RichWiFi home">
+          <img
+            :src="logo"
+            alt="RichWiFi"
+            class="h-8 w-auto max-w-[10rem] object-contain sm:h-9 sm:max-w-none"
+            draggable="false"
+          />
         </a>
         <nav class="flex items-center gap-4 text-sm font-semibold sm:gap-6">
           <a href="#" class="text-brand transition-colors hover:text-accent">Home</a>
@@ -202,23 +189,14 @@ const handleBuy = (location) => {
     <footer class="shrink-0 border-t border-brand/10 bg-surface">
       <!-- Mobile -->
       <div class="flex items-center justify-between gap-3 px-4 py-2 md:hidden">
-        <div class="flex items-center gap-1.5">
-          <div class="clay-sm flex h-5 w-5 items-center justify-center rounded-lg bg-gradient-to-br from-brand to-accent">
-            <svg
-              class="h-2.5 w-2.5 text-white"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="3"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M5 12.55a11 11 0 0 1 14.08 0" />
-              <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-            </svg>
-          </div>
-          <span class="font-heading text-xs font-bold text-brand">RichWiFi</span>
-        </div>
+        <a href="#" aria-label="RichWiFi home" class="shrink-0">
+          <img
+            :src="logo"
+            alt="RichWiFi"
+            class="h-4 w-auto max-w-24 object-contain"
+            draggable="false"
+          />
+        </a>
         <p class="text-[10px] font-medium text-brand-dark/40">
           © 2026 · Community Hotspot Network
         </p>
@@ -228,24 +206,14 @@ const handleBuy = (location) => {
       <div class="mx-auto hidden max-w-6xl px-4 py-8 md:block">
         <div class="flex flex-col items-start justify-between gap-8 sm:flex-row">
           <div class="max-w-sm">
-            <div class="flex items-center gap-2.5">
-              <div class="clay-sm flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-brand to-accent">
-                <svg
-                  class="h-4 w-4 text-white"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M5 12.55a11 11 0 0 1 14.08 0" />
-                  <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-                  <circle cx="12" cy="19.5" r="1" fill="currentColor" stroke="none" />
-                </svg>
-              </div>
-              <span class="font-heading text-base font-bold tracking-tight text-brand">RichWiFi</span>
-            </div>
+            <a href="#" aria-label="RichWiFi home">
+              <img
+                :src="logo"
+                alt="RichWiFi"
+                class="h-8 w-auto max-w-xs object-contain"
+                draggable="false"
+              />
+            </a>
             <p class="mt-2.5 text-sm leading-relaxed text-brand-dark/55">
               Secure, high-speed Wi-Fi tokens for every nearby location.
               Stay connected, together.
