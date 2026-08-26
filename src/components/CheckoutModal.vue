@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { initializePayment, currency } from '../services/payment'
+import { initializePayment, generateAccessCodes, currency } from '../services/payment'
 
 const props = defineProps({
   location: { type: Object, required: true },
@@ -13,6 +13,8 @@ const email = ref('')
 const step = ref('details') // 'details' | 'processing' | 'success' | 'error'
 const error = ref('')
 const receipt = ref(null)
+const accessCodes = ref([])
+const copiedIndex = ref(null)
 
 const MAX_QTY = Math.min(props.location.tokenCount || 10, 20)
 
@@ -26,7 +28,9 @@ const subtotal = computed(() => (selectedPlan.value?.price ?? 0) * quantity.valu
 const serviceFee = computed(() => 0) // keep flat for now; Paystack fees shown at gateway
 const total = computed(() => subtotal.value + serviceFee.value)
 
-const validEmail = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()))
+const validEmail = computed(
+  () => !email.value.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()),
+)
 const canPay = computed(() => validEmail.value && step.value !== 'processing')
 
 const changeQty = (delta) => {
@@ -43,10 +47,11 @@ const pay = async () => {
       planId: selectedPlan.value.id,
       planLabel: selectedPlan.value.label,
       quantity: quantity.value,
-      email: email.value.trim(),
+      email: email.value.trim() || null,
       amountMinor: Math.round(total.value * 100), // Paystack expects minor units
     })
     receipt.value = res
+    accessCodes.value = generateAccessCodes(quantity.value, selectedPlan.value.label)
     step.value = 'success'
   } catch (e) {
     error.value = e.message || 'Something went wrong. Please try again.'
@@ -67,6 +72,8 @@ watch(
     step.value = 'details'
     error.value = ''
     receipt.value = null
+    accessCodes.value = []
+    copiedIndex.value = null
   },
 )
 
@@ -74,6 +81,18 @@ const onKeydown = (e) => {
   if (e.key === 'Escape') resetAndClose()
 }
 window.addEventListener('keydown', onKeydown)
+
+const copyCode = async (code, i) => {
+  try {
+    await navigator.clipboard.writeText(code)
+    copiedIndex.value = i
+    setTimeout(() => {
+      if (copiedIndex.value === i) copiedIndex.value = null
+    }, 1500)
+  } catch {
+    /* clipboard unavailable — ignore */
+  }
+}
 </script>
 
 <template>
@@ -190,7 +209,10 @@ window.addEventListener('keydown', onKeydown)
 
                 <!-- Email -->
                 <label class="mt-4 block">
-                  <span class="text-xs font-bold tracking-widest text-brand uppercase">Delivery email</span>
+                  <span class="text-xs font-bold tracking-widest text-brand uppercase">
+                    Delivery email
+                    <span class="ml-1 rounded-full bg-brand/10 px-1.5 py-0.5 text-[9px] font-extrabold text-brand/70 normal-case tracking-normal">optional</span>
+                  </span>
                   <input
                     v-model="email"
                     type="email"
@@ -199,7 +221,7 @@ window.addEventListener('keydown', onKeydown)
                     class="clay-well mt-2 w-full rounded-2xl bg-brand/[0.04] px-4 py-3 text-sm font-medium text-brand-dark placeholder:text-brand-dark/35 focus:bg-surface focus:ring-2 focus:ring-brand/40 focus:outline-none"
                   />
                   <span class="mt-1.5 block text-[11px] text-brand-dark/45">
-                    Your access codes will be sent here instantly after payment.
+                    Leave empty to get your codes right here — or add an email and we'll send them too.
                   </span>
                 </label>
 
@@ -254,19 +276,55 @@ window.addEventListener('keydown', onKeydown)
               </div>
 
               <!-- ── STEP: success ─────────────────────────────── -->
-              <div v-else-if="step === 'success'" class="flex flex-col items-center py-8 text-center">
+              <div v-else-if="step === 'success'" class="flex flex-col items-center py-6 text-center sm:py-8">
                 <div class="clay-sm flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600">
                   <svg class="h-8 w-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
                 </div>
                 <p class="font-heading mt-4 text-base font-bold text-brand">
-                  {{ quantity }} × {{ receipt ? selectedPlan.label : '' }} token{{ quantity > 1 ? 's' : '' }}
+                  {{ quantity }} × {{ selectedPlan.label }} token{{ quantity > 1 ? 's' : '' }}
                 </p>
-                <p class="mt-1 text-sm text-brand-dark/55">
-                  Sent to <span class="font-semibold">{{ email }}</span>
+                <p class="mt-1 max-w-[18rem] text-sm text-brand-dark/55">
+                  {{
+                    email.trim()
+                      ? `Also sent to ${email.trim()}`
+                      : 'Here are your access codes — copy and connect!'
+                  }}
                 </p>
-                <div class="clay-well mt-4 w-full rounded-2xl bg-brand/[0.04] p-4 text-left">
+
+                <!-- Access tokens -->
+                <div class="clay-well mt-4 w-full rounded-2xl bg-brand/[0.04] p-4">
+                  <p class="text-left text-[11px] font-bold tracking-widest text-brand uppercase">
+                    Your tokens
+                  </p>
+                  <ul class="mt-2 space-y-1.5">
+                    <li
+                      v-for="(code, i) in accessCodes"
+                      :key="code"
+                      class="flex items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2 shadow-sm"
+                    >
+                      <span class="truncate font-mono text-xs font-bold text-brand">{{ code }}</span>
+                      <button
+                        type="button"
+                        class="flex shrink-0 items-center gap-1 rounded-lg bg-brand/[0.06] px-2 py-1 text-[10px] font-bold text-brand transition hover:bg-brand/15 active:scale-95"
+                        @click="copyCode(code, i)"
+                      >
+                        <svg v-if="copiedIndex !== i" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <rect width="14" height="14" x="8" y="8" rx="2" />
+                          <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                        </svg>
+                        <svg v-else class="h-3 w-3 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                        {{ copiedIndex === i ? 'Copied!' : 'Copy' }}
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+
+                <!-- Receipt -->
+                <div class="clay-well mt-3 w-full rounded-2xl bg-brand/[0.04] p-4 text-left">
                   <div class="flex items-center justify-between text-sm text-brand-dark/65">
                     <span>Amount paid</span>
                     <span class="font-heading font-black text-brand">{{ currency(total) }}</span>

@@ -38,4 +38,18 @@ export function initializePayment(order) {
   })
 }
 
+/**
+ * Generates mock access codes for a purchase.
+ * Later, these will come from your backend / hotspot RADIUS system
+ * after Paystack confirms the transaction.
+ */
+export function generateAccessCodes(quantity, planLabel) {
+  const prefix = planLabel.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'TKN'
+  return Array.from({ length: quantity }, () => {
+    const seg = () =>
+      Math.random().toString(36).slice(2, 6).toUpperCase()
+    return `${prefix}-${seg()}-${seg()}`
+  })
+}
+
 export const currency = (value) => `$${value.toFixed(2)}`
