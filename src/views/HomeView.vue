@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import LocationCard from '../components/LocationCard.vue'
+import CheckoutModal from '../components/CheckoutModal.vue'
 import { locations } from '../data/locations'
 import logo from '../assets/logo.png'
 
@@ -50,6 +51,10 @@ const goToSlide = (i) => {
 
 const handleBuy = (location) => {
   selectedLocation.value = location
+}
+
+const closeCheckout = () => {
+  selectedLocation.value = null
 }
 </script>
 
@@ -243,5 +248,12 @@ const handleBuy = (location) => {
         </p>
       </div>
     </footer>
+
+    <!-- Purchase flow -->
+    <CheckoutModal
+      v-if="selectedLocation"
+      :location="selectedLocation"
+      @close="closeCheckout"
+    />
   </div>
 </template>
