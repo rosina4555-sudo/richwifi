@@ -33,8 +33,8 @@ const SIGNING_KEY = 'RichWiFi-Admin-2026-S3cr3t' // client-side signing; move to
 // Default: admin@richwifi.com  /  RichWiFi@Admin2026
 const ADMINS = [
   {
-    emailHash: 'b5a056a7d4c50c3e4c535e0a32db223c36b212a9392f19f8c0a3826898e52df7',
-    passHash: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918',
+    emailHash: '302f9699238e580df55313041012bef8faa51e8ed6df873a6276b5fbd0d5debe',
+    passHash: '7c7119a35be62d899499845bb8d767756ae2f918b86e69a7e89c981cc52b4d77',
     label: 'Super Admin',
   },
 ]
