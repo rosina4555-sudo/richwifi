@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { logout } from '../services/auth'
 import OverviewPanel from '../components/admin/OverviewPanel.vue'
 import LocationsPanel from '../components/admin/LocationsPanel.vue'
 import TokensPanel from '../components/admin/TokensPanel.vue'
@@ -27,10 +28,23 @@ const ActivePanel = computed(() => panels[activeTab.value])
           <img :src="logo" alt="RichWiFi" class="h-6 w-auto max-w-[7rem] object-contain sm:h-7" draggable="false" />
           <span class="rounded-full bg-brand/10 px-2.5 py-0.5 text-[10px] font-extrabold tracking-widest text-brand uppercase">Admin</span>
         </div>
-        <a href="#" class="flex items-center gap-1.5 text-xs font-semibold text-brand-dark/55 transition hover:text-accent">
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-          Back to site
-        </a>
+        <div class="flex items-center gap-2">
+          <a href="#" class="flex items-center gap-1.5 text-xs font-semibold text-brand-dark/55 transition hover:text-accent">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            Site
+          </a>
+          <span class="h-3 w-px bg-brand/15"></span>
+          <button
+            type="button"
+            class="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-red-500/70 transition hover:bg-red-50 hover:text-red-600"
+            @click="logout"
+          >
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            Logout
+          </button>
+        </div>
       </div>
       <!-- Tab bar -->
       <div class="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 pb-2 hide-scrollbar">

@@ -206,9 +206,18 @@ const closeCheckout = () => {
             draggable="false"
           />
         </a>
-        <p class="text-[10px] font-medium text-brand-dark/40">
-          © 2026 · Community Hotspot Network
-        </p>
+        <div class="flex items-center gap-3">
+          <p class="text-[10px] font-medium text-brand-dark/40">
+            © 2026
+          </p>
+          <a
+            href="#/admin"
+            class="rounded-md px-1.5 py-0.5 text-[9px] font-bold text-brand-dark/25 transition hover:bg-brand/5 hover:text-brand-dark/50"
+            title="Admin"
+          >
+            •••
+          </a>
+        </div>
       </div>
 
       <!-- Desktop -->
