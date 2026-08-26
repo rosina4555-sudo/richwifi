@@ -198,11 +198,80 @@ const handleBuy = (location) => {
       </section>
     </main>
 
-    <footer class="hidden shrink-0 border-t border-brand/10 bg-surface py-6 md:block">
-      <div class="mx-auto max-w-6xl space-y-1 px-4 text-center">
-        <p class="font-heading text-xs font-bold text-brand-dark/70">RichWiFi</p>
-        <p class="text-xs text-brand-dark/45">
-          © 2026 · Community Hotspot Network · Stay connected, together.
+    <!-- Footer: slim bar on mobile, full footer on desktop -->
+    <footer class="shrink-0 border-t border-brand/10 bg-surface">
+      <!-- Mobile -->
+      <div class="flex items-center justify-between gap-3 px-4 py-2 md:hidden">
+        <div class="flex items-center gap-1.5">
+          <div class="clay-sm flex h-5 w-5 items-center justify-center rounded-lg bg-gradient-to-br from-brand to-accent">
+            <svg
+              class="h-2.5 w-2.5 text-white"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+            </svg>
+          </div>
+          <span class="font-heading text-xs font-bold text-brand">RichWiFi</span>
+        </div>
+        <p class="text-[10px] font-medium text-brand-dark/40">
+          © 2026 · Community Hotspot Network
+        </p>
+      </div>
+
+      <!-- Desktop -->
+      <div class="mx-auto hidden max-w-6xl px-4 py-8 md:block">
+        <div class="flex flex-col items-start justify-between gap-8 sm:flex-row">
+          <div class="max-w-sm">
+            <div class="flex items-center gap-2.5">
+              <div class="clay-sm flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-brand to-accent">
+                <svg
+                  class="h-4 w-4 text-white"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+                  <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                  <circle cx="12" cy="19.5" r="1" fill="currentColor" stroke="none" />
+                </svg>
+              </div>
+              <span class="font-heading text-base font-bold tracking-tight text-brand">RichWiFi</span>
+            </div>
+            <p class="mt-2.5 text-sm leading-relaxed text-brand-dark/55">
+              Secure, high-speed Wi-Fi tokens for every nearby location.
+              Stay connected, together.
+            </p>
+          </div>
+          <div class="flex gap-14">
+            <div>
+              <h3 class="font-heading text-xs font-bold tracking-widest text-brand uppercase">Explore</h3>
+              <ul class="mt-3 space-y-2 text-sm font-medium text-brand-dark/60">
+                <li><a href="#" class="transition-colors hover:text-accent">Locations</a></li>
+                <li><a href="#" class="transition-colors hover:text-accent">My Tickets</a></li>
+                <li><a href="#" class="transition-colors hover:text-accent">Support</a></li>
+              </ul>
+            </div>
+            <div>
+              <h3 class="font-heading text-xs font-bold tracking-widest text-brand uppercase">Contact</h3>
+              <ul class="mt-3 space-y-2 text-sm font-medium text-brand-dark/60">
+                <li>support@richwifi.com</li>
+                <li>+1 (234) 567-890</li>
+                <li>124 Main Street, Cityville</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <p class="mt-8 border-t border-brand/10 pt-4 text-center text-xs text-brand-dark/45">
+          © 2026 RichWiFi · Community Hotspot Network · Stay connected, together.
         </p>
       </div>
     </footer>
