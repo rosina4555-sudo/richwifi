@@ -5,6 +5,8 @@ import { locations } from '../data/locations'
 
 const searchQuery = ref('')
 const selectedLocation = ref(null)
+const carouselEl = ref(null)
+const activeDot = ref(0)
 
 const filteredLocations = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
@@ -15,6 +17,35 @@ const filteredLocations = computed(() => {
       l.address.toLowerCase().includes(q),
   )
 })
+
+// Sync dots with carousel scroll position
+const onCarouselScroll = () => {
+  const el = carouselEl.value
+  if (!el || !el.children.length) return
+  const children = [...el.children]
+  const center = el.scrollLeft + el.clientWidth / 2
+  let nearest = 0
+  let minDist = Infinity
+  children.forEach((child, i) => {
+    const childCenter = child.offsetLeft + child.offsetWidth / 2
+    const dist = Math.abs(childCenter - center)
+    if (dist < minDist) {
+      minDist = dist
+      nearest = i
+    }
+  })
+  activeDot.value = nearest
+}
+
+const goToSlide = (i) => {
+  const el = carouselEl.value
+  if (!el || !el.children[i]) return
+  const target = el.children[i]
+  el.scrollTo({
+    left: target.offsetLeft - (el.clientWidth - target.offsetWidth) / 2,
+    behavior: 'smooth',
+  })
+}
 
 const handleBuy = (location) => {
   selectedLocation.value = location
@@ -124,7 +155,9 @@ const handleBuy = (location) => {
         <!-- Mobile: swipeable snap carousel that fits the screen -->
         <div
           v-if="filteredLocations.length"
-          class="hide-scrollbar -mx-4 flex min-h-0 flex-1 snap-x snap-mandatory items-stretch gap-4 overflow-x-auto scroll-p-6 px-4 pb-1 md:static md:mx-0 md:grid md:flex-none md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0 lg:grid-cols-3 lg:gap-6"
+          ref="carouselEl"
+          class="hide-scrollbar -mx-4 flex min-h-0 snap-x snap-mandatory items-start gap-4 overflow-x-auto scroll-p-6 px-4 pb-1 md:static md:mx-0 md:grid md:flex-none md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0 lg:grid-cols-3 lg:gap-6"
+          @scroll.passive="onCarouselScroll"
         >
           <div
             v-for="(location, i) in filteredLocations"
@@ -132,16 +165,27 @@ const handleBuy = (location) => {
             class="w-[82vw] max-w-[22rem] shrink-0 snap-center last:snap-end md:w-full md:max-w-none md:shrink"
           >
             <LocationCard :location="location" :featured="i === 0" @buy="handleBuy" />
-            <div
-              v-if="i === 0 && filteredLocations.length > 1"
-              class="mt-2 flex items-center justify-center gap-1.5 text-brand-dark/30 md:hidden"
-            >
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 12H5" /><path d="m12 19-7-7 7-7" />
-              </svg>
-              <span class="text-[11px] font-semibold tracking-wide uppercase">Swipe for more spots</span>
-            </div>
           </div>
+        </div>
+
+        <!-- Dot indicators (mobile carousel only) -->
+        <div
+          v-if="filteredLocations.length > 1"
+          class="mt-3 flex shrink-0 items-center justify-center gap-2 md:hidden"
+        >
+          <button
+            v-for="(_, i) in filteredLocations"
+            :key="i"
+            type="button"
+            :aria-label="`Go to location ${i + 1}`"
+            class="h-2 rounded-full transition-all duration-300"
+            :class="[
+              i === activeDot
+                ? 'w-6 bg-gradient-to-r from-brand to-accent shadow-sm'
+                : 'w-2 bg-brand/15 hover:bg-brand/30',
+            ]"
+            @click="goToSlide(i)"
+          ></button>
         </div>
 
         <div

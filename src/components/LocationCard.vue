@@ -10,7 +10,7 @@ const currency = (value) => `$${value.toFixed(2)}`
 <template>
   <article
     :class="[
-      'clay group mx-auto flex h-full max-w-md flex-col overflow-hidden rounded-3xl border border-brand/10 bg-surface text-brand-dark transition-transform duration-300 hover:-translate-y-1 md:mx-0 md:max-w-none',
+      'clay group mx-auto flex max-w-md flex-col overflow-hidden rounded-3xl border border-brand/10 bg-surface text-brand-dark transition-transform duration-300 hover:-translate-y-1 md:mx-0 md:max-w-none',
       featured ? 'ring-2 ring-brand/20' : '',
     ]"
   >
@@ -66,7 +66,7 @@ const currency = (value) => `$${value.toFixed(2)}`
       </div>
 
       <!-- Plans as clay wells -->
-      <ul class="mt-3 min-h-0 flex-1 space-y-1.5 overflow-y-auto hide-scrollbar">
+      <ul class="mt-2.5 space-y-1.5">
         <li
           v-for="d in location.availableTokens"
           :key="d.id"
@@ -83,7 +83,7 @@ const currency = (value) => `$${value.toFixed(2)}`
 
       <button
         @click="$emit('buy', location)"
-        class="clay-btn mt-3 w-full shrink-0 rounded-2xl bg-gradient-to-r from-brand to-accent py-3 text-sm font-extrabold tracking-wide text-white focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
+        class="clay-btn mt-3 w-full shrink-0 rounded-2xl bg-gradient-to-r from-brand to-accent py-2.5 text-sm font-extrabold tracking-wide text-white focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none sm:py-3"
       >
         Buy Token →
       </button>
