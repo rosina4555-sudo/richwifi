@@ -1,13 +1,15 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { initializePayment, generateAccessCodes, currency } from '../services/payment'
+import { initializePayment, currency } from '../services/payment'
+import { recordSale } from '../data/store'
 
 const props = defineProps({
   location: { type: Object, required: true },
 })
 const emit = defineEmits(['close'])
 
-const selectedPlanId = ref(props.location.availableTokens[0]?.id)
+const availableTokens = computed(() => props.location.plans || props.location.availableTokens || [])
+const selectedPlanId = ref(availableTokens.value[0]?.id)
 const quantity = ref(1)
 const email = ref('')
 const step = ref('details') // 'details' | 'processing' | 'success' | 'error'
@@ -20,8 +22,8 @@ const MAX_QTY = Math.min(props.location.tokenCount || 10, 20)
 
 const selectedPlan = computed(
   () =>
-    props.location.availableTokens.find((p) => p.id === selectedPlanId.value) ||
-    props.location.availableTokens[0],
+    availableTokens.value.find((p) => p.id === selectedPlanId.value) ||
+    availableTokens.value[0],
 )
 
 const subtotal = computed(() => (selectedPlan.value?.price ?? 0) * quantity.value)
@@ -51,7 +53,13 @@ const pay = async () => {
       amountMinor: Math.round(total.value * 100), // Paystack expects minor units
     })
     receipt.value = res
-    accessCodes.value = generateAccessCodes(quantity.value, selectedPlan.value.label)
+    const { codes } = recordSale({
+      locationId: props.location.id,
+      planId: selectedPlan.value.id,
+      quantity: quantity.value,
+      email: email.value.trim() || null,
+    })
+    accessCodes.value = codes
     step.value = 'success'
   } catch (e) {
     error.value = e.message || 'Something went wrong. Please try again.'
@@ -67,7 +75,7 @@ const resetAndClose = () => {
 watch(
   () => props.location,
   () => {
-    selectedPlanId.value = props.location.availableTokens[0]?.id
+    selectedPlanId.value = (props.location.plans || props.location.availableTokens || [])[0]?.id
     quantity.value = 1
     step.value = 'details'
     error.value = ''
@@ -157,7 +165,7 @@ const copyCode = async (code, i) => {
                 <p class="text-xs font-bold tracking-widest text-brand uppercase">Choose a plan</p>
                 <div class="mt-2 grid grid-cols-3 gap-2">
                   <button
-                    v-for="p in location.availableTokens"
+                    v-for="p in availableTokens"
                     :key="p.id"
                     type="button"
                     class="flex flex-col items-center rounded-2xl px-2 py-2.5 transition-all duration-200"

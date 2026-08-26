@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import LocationCard from '../components/LocationCard.vue'
 import CheckoutModal from '../components/CheckoutModal.vue'
-import { locations } from '../data/locations'
+import { store } from '../data/store'
 import logo from '../assets/logo.png'
 
 const searchQuery = ref('')
@@ -12,8 +12,13 @@ const activeDot = ref(0)
 
 const filteredLocations = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return locations
-  return locations.filter(
+  const locs = store.locations.map((l) => ({
+    ...l,
+    availableTokens: l.plans,
+    tokenCount: store.tokens.filter((t) => t.locationId === l.id && t.status === 'available').length,
+  }))
+  if (!q) return locs
+  return locs.filter(
     (l) =>
       l.name.toLowerCase().includes(q) ||
       l.address.toLowerCase().includes(q),
@@ -145,8 +150,7 @@ const closeCheckout = () => {
         </div>
 
         <!-- Mobile: swipeable snap carousel that fits the screen -->
-        <div
-          v-if="filteredLocations.length"
+        <div            v-if="filteredLocations.length"
           ref="carouselEl"
           class="hide-scrollbar -mx-4 flex min-h-0 snap-x snap-mandatory items-start gap-4 overflow-x-auto scroll-p-6 px-4 pb-1 md:static md:mx-0 md:grid md:flex-none md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0 lg:grid-cols-3 lg:gap-6"
           @scroll.passive="onCarouselScroll"
@@ -231,6 +235,7 @@ const closeCheckout = () => {
                 <li><a href="#" class="transition-colors hover:text-accent">Locations</a></li>
                 <li><a href="#" class="transition-colors hover:text-accent">My Tickets</a></li>
                 <li><a href="#" class="transition-colors hover:text-accent">Support</a></li>
+                <li><a href="#/admin" class="transition-colors hover:text-accent">Admin</a></li>
               </ul>
             </div>
             <div>
