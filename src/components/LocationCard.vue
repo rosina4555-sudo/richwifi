@@ -1,10 +1,18 @@
 <script setup>
+import { computed } from 'vue'
+
 const props = defineProps({
   location: Object,
   featured: { type: Boolean, default: false },
 })
 
-const currency = (value) => `$${value.toFixed(2)}`
+const currency = (value) => `₵${Number(value).toFixed(2)}`
+
+// Compute total available stock from all plans
+const totalStock = computed(() => {
+  const plans = props.location.plans || props.location.availableTokens || []
+  return plans.reduce((sum, p) => sum + Number(p.available_stock ?? p.availableStock ?? 0), 0)
+})
 </script>
 
 <template>
@@ -18,7 +26,7 @@ const currency = (value) => `$${value.toFixed(2)}`
     <div class="relative shrink-0 px-4 pt-4">
       <div
         class="relative flex h-24 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br sm:h-28"
-        :class="location.color"
+        :class="location.theme_color || location.color_css || location.color"
       >
         <div
           class="pointer-events-none absolute inset-x-3 top-1.5 h-6 rounded-full bg-white/25 blur-md"
@@ -38,9 +46,10 @@ const currency = (value) => `$${value.toFixed(2)}`
         </svg>
       </div>
       <span
-        class="clay-sm absolute top-6 right-5 rounded-full bg-surface px-2.5 py-1 text-[11px] font-bold text-brand"
+        class="clay-sm absolute top-6 right-5 rounded-full px-2.5 py-1 text-[11px] font-bold"
+        :class="totalStock > 0 ? 'bg-surface text-brand' : 'bg-red-50 text-red-600'"
       >
-        {{ location.tokenCount }} left
+        {{ totalStock }} left
       </span>
     </div>
 
@@ -65,16 +74,25 @@ const currency = (value) => `$${value.toFixed(2)}`
         </span>
       </div>
 
-      <!-- Plans as clay wells -->
+      <!-- Plans with per-plan stock -->
       <ul class="mt-2.5 space-y-1.5">
         <li
-          v-for="d in location.availableTokens"
-          :key="d.id"
+          v-for="d in (location.plans || location.availableTokens || [])"
+          :key="d.plan_id || d.id"
           class="clay-well flex items-center justify-between gap-3 rounded-xl bg-brand/[0.05] px-3 py-2 text-xs"
         >
-          <span class="font-bold text-brand-dark/75">{{ d.label }}</span>
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="font-bold text-brand-dark/75">{{ d.label || d.plan_label }}</span>
+            <span
+              v-if="(d.available_stock ?? d.availableStock ?? 0) > 0"
+              class="text-[10px] font-semibold text-emerald-600"
+            >
+              {{ d.available_stock ?? d.availableStock }} avail
+            </span>
+            <span v-else class="text-[10px] font-semibold text-red-500">Out of stock</span>
+          </div>
           <span
-            class="rounded-full bg-gradient-to-r from-brand to-accent px-2.5 py-0.5 font-extrabold text-white shadow-sm"
+            class="shrink-0 rounded-full bg-gradient-to-r from-brand to-accent px-2.5 py-0.5 font-extrabold text-white shadow-sm"
           >
             {{ currency(d.price) }}
           </span>
@@ -83,9 +101,10 @@ const currency = (value) => `$${value.toFixed(2)}`
 
       <button
         @click="$emit('buy', location)"
-        class="clay-btn mt-3 w-full shrink-0 rounded-2xl bg-gradient-to-r from-brand to-accent py-2.5 text-sm font-extrabold tracking-wide text-white focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none sm:py-3"
+        :disabled="totalStock === 0"
+        class="clay-btn mt-3 w-full shrink-0 rounded-2xl bg-gradient-to-r from-brand to-accent py-2.5 text-sm font-extrabold tracking-wide text-white focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-40 disabled:cursor-not-allowed sm:py-3"
       >
-        Buy Token →
+        {{ totalStock > 0 ? 'Buy Ticket →' : 'Out of Stock' }}
       </button>
     </div>
   </article>

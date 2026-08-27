@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { logout } from '../services/auth'
+import { adminApi, getAdmin } from '../services/api'
 import OverviewPanel from '../components/admin/OverviewPanel.vue'
 import LocationsPanel from '../components/admin/LocationsPanel.vue'
 import TokensPanel from '../components/admin/TokensPanel.vue'
@@ -10,10 +11,11 @@ import logo from '../assets/logo.png'
 const tabs = [
   { id: 'overview', label: 'Overview', icon: 'chart' },
   { id: 'locations', label: 'Locations', icon: 'pin' },
-  { id: 'tokens', label: 'Tokens', icon: 'key' },
+  { id: 'tokens', label: 'Tickets', icon: 'key' },
   { id: 'sales', label: 'Sales', icon: 'receipt' },
 ]
 const activeTab = ref('overview')
+const adminInfo = ref(getAdmin())
 
 const panels = { overview: OverviewPanel, locations: LocationsPanel, tokens: TokensPanel, sales: SalesPanel }
 const ActivePanel = computed(() => panels[activeTab.value])
@@ -27,6 +29,9 @@ const ActivePanel = computed(() => panels[activeTab.value])
         <div class="flex items-center gap-3">
           <img :src="logo" alt="RichWiFi" class="h-6 w-auto max-w-[7rem] object-contain sm:h-7" draggable="false" />
           <span class="rounded-full bg-brand/10 px-2.5 py-0.5 text-[10px] font-extrabold tracking-widest text-brand uppercase">Admin</span>
+          <span v-if="adminInfo?.email" class="hidden text-xs text-brand-dark/45 sm:inline">
+            {{ adminInfo.email }}
+          </span>
         </div>
         <div class="flex items-center gap-2">
           <a href="#" class="flex items-center gap-1.5 text-xs font-semibold text-brand-dark/55 transition hover:text-accent">

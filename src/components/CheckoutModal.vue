@@ -1,89 +1,226 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { initializePayment, currency } from '../services/payment'
-import { recordSale } from '../data/store'
+import { ref, computed, watch, onUnmounted } from 'vue'
+import { api } from '../services/api'
+
+const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ''
 
 const props = defineProps({
   location: { type: Object, required: true },
 })
 const emit = defineEmits(['close'])
 
-const availableTokens = computed(() => props.location.plans || props.location.availableTokens || [])
-const selectedPlanId = ref(availableTokens.value[0]?.id)
+const availablePlans = computed(() => props.location.plans || [])
+const selectedPlanId = ref(availablePlans.value[0]?.plan_id || availablePlans.value[0]?.id)
 const quantity = ref(1)
 const email = ref('')
-const step = ref('details') // 'details' | 'processing' | 'success' | 'error'
+const step = ref('details') // 'details' | 'processing' | 'polling' | 'success' | 'cancelled' | 'error'
 const error = ref('')
-const receipt = ref(null)
+const orderId = ref(null)
+const accessCode = ref(null)
+const accessKey = ref(null)
+const paystackRef = ref(null)
 const accessCodes = ref([])
 const copiedIndex = ref(null)
+const copiedField = ref(null)
+let pollTimer = null
+let pollCount = 0
+const POLL_INTERVAL = 3000 // 3 seconds
+const POLL_TIMEOUT = 60000 // 60 seconds max
 
-const MAX_QTY = Math.min(props.location.tokenCount || 10, 20)
+const MAX_QTY = 20
 
 const selectedPlan = computed(
   () =>
-    availableTokens.value.find((p) => p.id === selectedPlanId.value) ||
-    availableTokens.value[0],
+    availablePlans.value.find((p) => (p.plan_id || p.id) === selectedPlanId.value) ||
+    availablePlans.value[0],
 )
 
-const subtotal = computed(() => (selectedPlan.value?.price ?? 0) * quantity.value)
-const serviceFee = computed(() => 0) // keep flat for now; Paystack fees shown at gateway
-const total = computed(() => subtotal.value + serviceFee.value)
+const subtotal = computed(() => (Number(selectedPlan.value?.price) || 0) * quantity.value)
+const total = computed(() => subtotal.value)
 
 const validEmail = computed(
   () => !email.value.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()),
 )
-const canPay = computed(() => validEmail.value && step.value !== 'processing')
+const inStock = computed(() => (Number(selectedPlan.value?.available_stock) || 0) > 0)
+const canPay = computed(() => validEmail.value && inStock.value && step.value === 'details')
 
 const changeQty = (delta) => {
   quantity.value = Math.min(MAX_QTY, Math.max(1, quantity.value + delta))
 }
 
+const currency = (value) => `₵${Number(value).toFixed(2)}`
+
+/**
+ * Step 1: Create order on backend → get accessCode
+ * Step 2: Open Paystack popup inline with resumeTransaction(accessCode)
+ * Step 3: On success, poll for token delivery
+ */
 const pay = async () => {
   if (!canPay.value) return
   step.value = 'processing'
   error.value = ''
+
   try {
-    const res = await initializePayment({
+    const idempotencyKey = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+    const res = await api.createOrder({
       locationId: props.location.id,
-      planId: selectedPlan.value.id,
-      planLabel: selectedPlan.value.label,
+      planId: selectedPlan.value.plan_id || selectedPlan.value.id,
       quantity: quantity.value,
-      email: email.value.trim() || null,
-      amountMinor: Math.round(total.value * 100), // Paystack expects minor units
+      email: email.value.trim(),
+      idempotencyKey,
     })
-    receipt.value = res
-    const { codes } = recordSale({
-      locationId: props.location.id,
-      planId: selectedPlan.value.id,
-      quantity: quantity.value,
-      email: email.value.trim() || null,
-    })
-    accessCodes.value = codes
-    step.value = 'success'
+
+    const orderData = res.data || res
+    orderId.value = orderData.orderId || orderData.id
+    accessCode.value = orderData.accessCode
+    accessKey.value = orderData.accessKey
+    paystackRef.value = orderData.reference
+
+    if (!accessCode.value) {
+      // Paystack unavailable — show simulation info
+      error.value = orderData.message || 'Payment gateway unavailable. Try again later.'
+      step.value = 'error'
+      return
+    }
+
+    // Step 2: Open Paystack popup inline
+    openPaystackPopup()
   } catch (e) {
-    error.value = e.message || 'Something went wrong. Please try again.'
+    error.value = e.message || 'Failed to create order. Please try again.'
     step.value = 'error'
   }
 }
 
+/**
+ * Opens the Paystack inline popup using resumeTransaction.
+ * Handles success, cancel, and error states.
+ */
+const openPaystackPopup = () => {
+  // Dynamically import Paystack
+  import('@paystack/inline-js').then(({ default: Paystack }) => {
+    const popup = new Paystack()
+
+    popup.resumeTransaction(accessCode.value, {
+      onLoad: (response) => {
+        // Popup loaded — user can now see the checkout form
+        console.log('Paystack popup loaded:', response.accessCode)
+      },
+      onSuccess: (transaction) => {
+        // Payment successful — start polling for token delivery
+        console.log('Payment successful:', transaction.reference)
+        step.value = 'polling'
+        startPolling()
+      },
+      onCancel: () => {
+        // User closed the popup without paying
+        step.value = 'cancelled'
+        releaseTokens()
+      },
+      onError: (err) => {
+        // Error loading the popup
+        console.error('Paystack error:', err)
+        error.value = err.message || 'Payment failed. Please try again.'
+        step.value = 'error'
+        releaseTokens()
+      },
+    })
+  }).catch((err) => {
+    console.error('Failed to load Paystack:', err)
+    error.value = 'Failed to load payment form. Please refresh and try again.'
+    step.value = 'error'
+  })
+}
+
+/**
+ * Poll the backend for order status after successful payment.
+ * Tokens appear once the webhook confirms payment.
+ */
+const startPolling = () => {
+  pollCount = 0
+  pollTimer = setInterval(async () => {
+    pollCount++
+
+    // Timeout after 60 seconds
+    if (pollCount * POLL_INTERVAL >= POLL_TIMEOUT) {
+      clearInterval(pollTimer)
+      pollTimer = null
+      error.value = 'Taking longer than expected. Your payment may still be processing — check back in a few minutes using your access key on My Tickets.'
+      step.value = 'error'
+      return
+    }
+
+    try {
+      const res = await api.getOrderStatus(orderId.value)
+      const data = res.data || res
+
+      if (data.status === 'paid') {
+        clearInterval(pollTimer)
+        pollTimer = null
+        accessCodes.value = (data.tokens || []).map((t) => ({
+          code: t.code,
+          expires_at: t.expires_at,
+        }))
+        step.value = 'success'
+      } else if (data.status === 'failed' || data.status === 'expired') {
+        clearInterval(pollTimer)
+        pollTimer = null
+        error.value = data.status === 'expired' ? 'Order expired. Please try again.' : 'Payment could not be verified. Please try again.'
+        step.value = 'error'
+      }
+    } catch {
+      // Keep polling on transient network errors
+    }
+  }, POLL_INTERVAL)
+}
+
+/**
+ * Release reserved tokens when payment is cancelled/failed.
+ * Best-effort — don't block UI on failure.
+ */
+const releaseTokens = async () => {
+  // The backend handles stale reservation cleanup,
+  // but we can also trigger the webhook simulator in dev
+  try {
+    // No explicit release endpoint — backend cleanup handles it
+  } catch {
+    // ignore
+  }
+}
+
 const resetAndClose = () => {
-  if (step.value === 'processing') return
+  if (step.value === 'processing' || step.value === 'polling') return
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
   emit('close')
 }
 
 watch(
   () => props.location,
   () => {
-    selectedPlanId.value = (props.location.plans || props.location.availableTokens || [])[0]?.id
+    selectedPlanId.value = (props.location.plans || [])[0]?.plan_id || (props.location.plans || [])[0]?.id
     quantity.value = 1
+    email.value = ''
     step.value = 'details'
     error.value = ''
-    receipt.value = null
+    orderId.value = null
+    accessCode.value = null
+    accessKey.value = null
+    paystackRef.value = null
     accessCodes.value = []
     copiedIndex.value = null
+    copiedField.value = null
   },
 )
+
+onUnmounted(() => {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+})
 
 const onKeydown = (e) => {
   if (e.key === 'Escape') resetAndClose()
@@ -96,6 +233,18 @@ const copyCode = async (code, i) => {
     copiedIndex.value = i
     setTimeout(() => {
       if (copiedIndex.value === i) copiedIndex.value = null
+    }, 1500)
+  } catch {
+    /* clipboard unavailable — ignore */
+  }
+}
+
+const copyField = async (value, field) => {
+  try {
+    await navigator.clipboard.writeText(value)
+    copiedField.value = field
+    setTimeout(() => {
+      if (copiedField.value === field) copiedField.value = null
     }, 1500)
   } catch {
     /* clipboard unavailable — ignore */
@@ -130,7 +279,7 @@ const copyCode = async (code, i) => {
             class="clay relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-surface sm:max-w-md sm:rounded-3xl"
             role="dialog"
             aria-modal="true"
-            aria-label="Purchase Wi-Fi tokens"
+            aria-label="Purchase Wi-Fi tickets"
           >
             <!-- Grab handle (mobile sheet affordance) -->
             <div class="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-brand/15 sm:hidden"></div>
@@ -139,9 +288,9 @@ const copyCode = async (code, i) => {
             <div class="flex shrink-0 items-start justify-between gap-3 px-5 pt-4 pb-3 sm:px-6 sm:pt-5">
               <div class="min-w-0">
                 <h2 class="font-heading text-lg font-bold tracking-tight text-brand">
-                  {{ step === 'success' ? 'Order Complete 🎉' : 'Buy Tokens' }}
+                  {{ step === 'success' ? 'Order Complete 🎉' : 'Buy Tickets' }}
                 </h2>
-                <p v-if="step !== 'success'" class="mt-0.5 truncate text-xs font-medium text-brand-dark/55">
+                <p v-if="step === 'details'" class="mt-0.5 truncate text-xs font-medium text-brand-dark/55">
                   {{ location.name }} · {{ location.address }}
                 </p>
               </div>
@@ -149,7 +298,7 @@ const copyCode = async (code, i) => {
                 type="button"
                 class="shrink-0 rounded-xl p-1.5 text-brand-dark/40 transition hover:bg-brand/5 hover:text-brand"
                 aria-label="Close"
-                :disabled="step === 'processing'"
+                :disabled="step === 'processing' || step === 'polling'"
                 @click="resetAndClose"
               >
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round">
@@ -160,28 +309,33 @@ const copyCode = async (code, i) => {
 
             <div class="min-h-0 flex-1 overflow-y-auto px-5 pb-5 sm:px-6 sm:pb-6">
               <!-- ── STEP: details ─────────────────────────────── -->
-              <template v-if="step === 'details' || step === 'error'">
+              <template v-if="step === 'details' || step === 'error' || step === 'cancelled'">
                 <!-- Plan picker -->
                 <p class="text-xs font-bold tracking-widest text-brand uppercase">Choose a plan</p>
                 <div class="mt-2 grid grid-cols-3 gap-2">
                   <button
-                    v-for="p in availableTokens"
-                    :key="p.id"
+                    v-for="p in availablePlans"
+                    :key="p.plan_id || p.id"
                     type="button"
                     class="flex flex-col items-center rounded-2xl px-2 py-2.5 transition-all duration-200"
                     :class="[
-                      p.id === selectedPlan.id
+                      (Number(p.available_stock) || 0) === 0 ? 'opacity-40 cursor-not-allowed' : '',
+                      (p.plan_id || p.id) === (selectedPlan.plan_id || selectedPlan.id)
                         ? 'bg-gradient-to-br from-brand to-accent text-white shadow-md shadow-accent/30 ring-2 ring-accent/40'
                         : 'clay-well bg-brand/[0.05] text-brand-dark/75 hover:bg-brand/10',
                     ]"
-                    @click="selectedPlanId = p.id"
+                    :disabled="(Number(p.available_stock) || 0) === 0"
+                    @click="selectedPlanId = p.plan_id || p.id"
                   >
-                    <span class="text-xs font-extrabold">{{ p.label }}</span>
+                    <span class="text-xs font-extrabold">{{ p.plan_label || p.label }}</span>
                     <span
                       class="mt-0.5 text-sm font-black"
-                      :class="p.id === selectedPlan.id ? 'text-white' : 'text-brand'"
+                      :class="(p.plan_id || p.id) === (selectedPlan.plan_id || selectedPlan.id) ? 'text-white' : 'text-brand'"
                     >
                       {{ currency(p.price) }}
+                    </span>
+                    <span class="mt-0.5 text-[10px] font-semibold" :class="(Number(p.available_stock) || 0) > 0 ? 'text-emerald-600' : 'text-red-500'">
+                      {{ (Number(p.available_stock) || 0) > 0 ? p.available_stock + ' left' : 'Sold out' }}
                     </span>
                   </button>
                 </div>
@@ -215,11 +369,11 @@ const copyCode = async (code, i) => {
                   </div>
                 </div>
 
-                <!-- Email -->
+                <!-- Email (optional) -->
                 <label class="mt-4 block">
                   <span class="text-xs font-bold tracking-widest text-brand uppercase">
-                    Delivery email
-                    <span class="ml-1 rounded-full bg-brand/10 px-1.5 py-0.5 text-[9px] font-extrabold text-brand/70 normal-case tracking-normal">optional</span>
+                    Email
+                    <span class="ml-1 rounded-full bg-brand/[0.06] px-1.5 py-0.5 text-[9px] font-bold text-brand/40 normal-case tracking-normal">optional</span>
                   </span>
                   <input
                     v-model="email"
@@ -229,19 +383,15 @@ const copyCode = async (code, i) => {
                     class="clay-well mt-2 w-full rounded-2xl bg-brand/[0.04] px-4 py-3 text-sm font-medium text-brand-dark placeholder:text-brand-dark/35 focus:bg-surface focus:ring-2 focus:ring-brand/40 focus:outline-none"
                   />
                   <span class="mt-1.5 block text-[11px] text-brand-dark/45">
-                    Leave empty to get your codes right here — or add an email and we'll send them too.
+                    Optional — we'll create one for you if skipped.
                   </span>
                 </label>
 
                 <!-- Order summary -->
                 <div class="clay-well mt-4 space-y-1.5 rounded-2xl bg-brand/[0.04] p-4 text-sm">
                   <div class="flex items-center justify-between text-brand-dark/65">
-                    <span>{{ selectedPlan.label }} token × {{ quantity }}</span>
+                    <span>{{ selectedPlan.plan_label || selectedPlan.label }} ticket × {{ quantity }}</span>
                     <span class="font-semibold">{{ currency(subtotal) }}</span>
-                  </div>
-                  <div class="flex items-center justify-between text-brand-dark/65">
-                    <span>Service fee</span>
-                    <span class="font-semibold">{{ currency(serviceFee) }}</span>
                   </div>
                   <div class="mt-1 flex items-center justify-between border-t border-brand/10 pt-2">
                     <span class="font-heading text-sm font-bold text-brand">Total</span>
@@ -249,8 +399,17 @@ const copyCode = async (code, i) => {
                   </div>
                 </div>
 
-                <p v-if="step === 'error'" class="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">
+                <!-- Out of stock warning -->
+                <p v-if="!inStock" class="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">
+                  This plan is currently out of stock. Please choose another plan.
+                </p>
+
+                <!-- Error / Cancel message -->
+                <p v-if="step === 'error' && error" class="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">
                   {{ error }}
+                </p>
+                <p v-if="step === 'cancelled'" class="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+                  Payment was cancelled. You can try again or choose a different plan.
                 </p>
 
                 <!-- Pay button -->
@@ -268,18 +427,37 @@ const copyCode = async (code, i) => {
                   Pay {{ currency(total) }}
                 </button>
                 <p class="mt-2.5 text-center text-[11px] text-brand-dark/40">
-                  Secured payment · Instant token delivery by email
+                  Secured by Paystack · Instant ticket delivery
                 </p>
               </template>
 
-              <!-- ── STEP: processing ──────────────────────────── -->
+              <!-- ── STEP: processing (creating order) ─────────── -->
               <div v-else-if="step === 'processing'" class="flex flex-col items-center py-12 text-center">
-                <div
-                  class="h-12 w-12 animate-spin rounded-full border-4 border-brand/15 border-t-brand"
-                ></div>
-                <p class="font-heading mt-5 text-base font-bold text-brand">Processing payment…</p>
+                <div class="h-12 w-12 animate-spin rounded-full border-4 border-brand/15 border-t-brand"></div>
+                <p class="font-heading mt-5 text-base font-bold text-brand">Preparing payment…</p>
                 <p class="mt-1 max-w-[16rem] text-xs text-brand-dark/50">
-                  Please don't close this window while we confirm your transaction.
+                  Setting up your order and payment form.
+                </p>
+              </div>
+
+              <!-- ── STEP: polling (waiting for webhook) ───────── -->
+              <div v-else-if="step === 'polling'" class="flex flex-col items-center py-12 text-center">
+                <div class="relative">
+                  <div class="h-12 w-12 animate-spin rounded-full border-4 border-brand/15 border-t-brand"></div>
+                  <svg class="absolute inset-0 m-auto h-5 w-5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="18" height="11" x="3" y="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                </div>
+                <p class="font-heading mt-5 text-base font-bold text-brand">Confirming payment…</p>
+                <p class="mt-1 max-w-[16rem] text-xs text-brand-dark/50">
+                  We're verifying your payment. This usually takes a few seconds.
+                </p>
+                <p class="mt-3 text-[11px] text-brand-dark/35">
+                  Please don't close this window.
+                </p>
+                <p class="mt-2 text-[10px] text-brand-dark/30">
+                  Timeout in {{ Math.max(0, Math.ceil((POLL_TIMEOUT - pollCount * POLL_INTERVAL) / 1000)) }}s
                 </p>
               </div>
 
@@ -291,32 +469,64 @@ const copyCode = async (code, i) => {
                   </svg>
                 </div>
                 <p class="font-heading mt-4 text-base font-bold text-brand">
-                  {{ quantity }} × {{ selectedPlan.label }} token{{ quantity > 1 ? 's' : '' }}
+                  {{ quantity }} × {{ selectedPlan.plan_label || selectedPlan.label }} ticket{{ quantity > 1 ? 's' : '' }}
                 </p>
                 <p class="mt-1 max-w-[18rem] text-sm text-brand-dark/55">
-                  {{
-                    email.trim()
-                      ? `Also sent to ${email.trim()}`
-                      : 'Here are your access codes — copy and connect!'
-                  }}
+                  Payment confirmed! Here are your access codes.
                 </p>
 
-                <!-- Access tokens -->
+                <!-- Access details (save for later) -->
                 <div class="clay-well mt-4 w-full rounded-2xl bg-brand/[0.04] p-4">
                   <p class="text-left text-[11px] font-bold tracking-widest text-brand uppercase">
-                    Your tokens
+                    🔑 Save these to access your purchase later
+                  </p>
+                  <div class="mt-2 space-y-1.5">
+                    <div v-if="paystackRef" class="flex items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2">
+                      <div class="min-w-0 flex-1">
+                        <span class="block text-[10px] font-bold text-brand-dark/40 uppercase">Reference</span>
+                        <span class="block truncate font-mono text-xs font-bold text-brand">{{ paystackRef }}</span>
+                      </div>
+                      <button type="button"
+                        class="flex shrink-0 items-center gap-1 rounded-lg bg-brand/[0.06] px-2 py-1 text-[10px] font-bold text-brand transition hover:bg-brand/15"
+                        @click="copyField(paystackRef, 'ref')">
+                        {{ copiedField === 'ref' ? '✓' : 'Copy' }}
+                      </button>
+                    </div>
+                    <div v-if="accessKey" class="flex items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2">
+                      <div class="min-w-0 flex-1">
+                        <span class="block text-[10px] font-bold text-brand-dark/40 uppercase">Access Key</span>
+                        <span class="block truncate font-mono text-[11px] font-bold text-brand">{{ accessKey }}</span>
+                      </div>
+                      <button type="button"
+                        class="flex shrink-0 items-center gap-1 rounded-lg bg-brand/[0.06] px-2 py-1 text-[10px] font-bold text-brand transition hover:bg-brand/15"
+                        @click="copyField(accessKey, 'key')">
+                        {{ copiedField === 'key' ? '✓' : 'Copy' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Access tickets -->
+                <div class="clay-well mt-3 w-full rounded-2xl bg-brand/[0.04] p-4">
+                  <p class="text-left text-[11px] font-bold tracking-widest text-brand uppercase">
+                    Your tickets
                   </p>
                   <ul class="mt-2 space-y-1.5">
                     <li
-                      v-for="(code, i) in accessCodes"
-                      :key="code"
+                      v-for="(token, i) in accessCodes"
+                      :key="token.code"
                       class="flex items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2 shadow-sm"
                     >
-                      <span class="truncate font-mono text-xs font-bold text-brand">{{ code }}</span>
+                      <div class="min-w-0 flex-1">
+                        <span class="block truncate font-mono text-xs font-bold text-brand">{{ token.code }}</span>
+                        <span v-if="token.expires_at" class="block text-[10px] text-brand-dark/40">
+                          Expires: {{ token.expires_at }}
+                        </span>
+                      </div>
                       <button
                         type="button"
                         class="flex shrink-0 items-center gap-1 rounded-lg bg-brand/[0.06] px-2 py-1 text-[10px] font-bold text-brand transition hover:bg-brand/15 active:scale-95"
-                        @click="copyCode(code, i)"
+                        @click="copyCode(token.code, i)"
                       >
                         <svg v-if="copiedIndex !== i" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <rect width="14" height="14" x="8" y="8" rx="2" />
@@ -331,19 +541,6 @@ const copyCode = async (code, i) => {
                   </ul>
                 </div>
 
-                <!-- Receipt -->
-                <div class="clay-well mt-3 w-full rounded-2xl bg-brand/[0.04] p-4 text-left">
-                  <div class="flex items-center justify-between text-sm text-brand-dark/65">
-                    <span>Amount paid</span>
-                    <span class="font-heading font-black text-brand">{{ currency(total) }}</span>
-                  </div>
-                  <div class="mt-1.5 flex items-center justify-between text-sm text-brand-dark/65">
-                    <span>Reference</span>
-                    <span class="rounded-md bg-surface px-2 py-0.5 font-mono text-xs font-bold text-brand">
-                      {{ receipt?.reference }}
-                    </span>
-                  </div>
-                </div>
                 <button
                   type="button"
                   class="clay-btn mt-5 w-full rounded-2xl bg-gradient-to-r from-brand to-accent py-3 text-sm font-extrabold tracking-wide text-white"

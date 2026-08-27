@@ -1,6 +1,6 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { login, isAuthenticated, remainingLockoutSeconds } from '../services/auth'
+import { ref, onMounted } from 'vue'
+import { login, isAuthenticated } from '../services/auth'
 import logo from '../assets/logo.png'
 
 const emit = defineEmits(['authenticated'])
@@ -9,24 +9,16 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
-const lockout = ref(remainingLockoutSeconds())
 const showPassword = ref(false)
 
-let lockTimer = null
 onMounted(async () => {
   if (await isAuthenticated()) {
     emit('authenticated')
-    return
   }
-  // Tick lockout countdown
-  lockTimer = setInterval(() => {
-    lockout.value = remainingLockoutSeconds()
-  }, 1000)
 })
-onUnmounted(() => clearInterval(lockTimer))
 
 const submit = async () => {
-  if (loading.value || lockout.value > 0) return
+  if (loading.value) return
   error.value = ''
   loading.value = true
   try {
@@ -35,7 +27,6 @@ const submit = async () => {
       emit('authenticated')
     } else {
       error.value = res.error
-      lockout.value = remainingLockoutSeconds()
     }
   } catch {
     error.value = 'Something went wrong. Please try again.'
@@ -69,15 +60,6 @@ const submit = async () => {
         {{ error }}
       </div>
 
-      <!-- Lockout banner -->
-      <div v-if="lockout > 0" class="mt-4 rounded-xl bg-amber-50 px-3 py-2.5 text-center text-xs font-semibold text-amber-700">
-        <svg class="mx-auto mb-1 h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-        </svg>
-        Too many failed attempts.<br />
-        Try again in <span class="font-black">{{ lockout }}s</span>.
-      </div>
-
       <!-- Form -->
       <form class="mt-5 space-y-3" @submit.prevent="submit">
         <label class="block">
@@ -87,7 +69,7 @@ const submit = async () => {
             type="email"
             autocomplete="email"
             placeholder="admin@richwifi.com"
-            :disabled="loading || lockout > 0"
+            :disabled="loading"
             class="clay-well mt-1.5 w-full rounded-xl bg-brand/[0.04] px-4 py-3 text-sm font-medium text-brand-dark placeholder:text-brand-dark/30 focus:bg-surface focus:ring-2 focus:ring-brand/30 focus:outline-none disabled:opacity-50"
           />
         </label>
@@ -100,7 +82,7 @@ const submit = async () => {
               :type="showPassword ? 'text' : 'password'"
               autocomplete="current-password"
               placeholder="••••••••"
-              :disabled="loading || lockout > 0"
+              :disabled="loading"
               class="clay-well mt-1.5 w-full rounded-xl bg-brand/[0.04] px-4 py-3 pr-10 text-sm font-medium text-brand-dark placeholder:text-brand-dark/30 focus:bg-surface focus:ring-2 focus:ring-brand/30 focus:outline-none disabled:opacity-50"
             />
             <button
@@ -122,7 +104,7 @@ const submit = async () => {
 
         <button
           type="submit"
-          :disabled="loading || lockout > 0 || !email.trim() || !password.trim()"
+          :disabled="loading || !email.trim() || !password.trim()"
           class="clay-btn mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand to-accent py-3 text-sm font-extrabold tracking-wide text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           <svg v-if="loading" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -138,7 +120,7 @@ const submit = async () => {
       </form>
 
       <p class="mt-5 text-center text-[11px] text-brand-dark/35">
-        Authorized personnel only. Sessions expire after 4 hours.
+        Authorized personnel only. Sessions expire after 8 hours.
       </p>
     </div>
 

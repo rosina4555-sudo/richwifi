@@ -4,6 +4,7 @@ import { isAuthenticated } from './services/auth'
 import HomeView from './views/HomeView.vue'
 import AdminLogin from './views/AdminLogin.vue'
 import AdminView from './views/AdminView.vue'
+import PurchaseLookupView from './views/PurchaseLookupView.vue'
 
 const hash = ref(window.location.hash)
 const authed = ref(false)
@@ -19,9 +20,10 @@ onMounted(async () => {
 })
 onUnmounted(() => window.removeEventListener('hashchange', onHash))
 
-const isHome = computed(() => !hash.value.startsWith('#/admin'))
+const isHome = computed(() => !hash.value.startsWith('#/admin') && !hash.value.startsWith('#/my-purchases'))
 const isLogin = computed(() => hash.value.startsWith('#/admin') && !authed.value)
 const isDashboard = computed(() => hash.value.startsWith('#/admin') && authed.value)
+const isLookup = computed(() => hash.value.startsWith('#/my-purchases'))
 
 const onAuthenticated = () => {
   authed.value = true
@@ -31,6 +33,7 @@ const onAuthenticated = () => {
 <template>
   <template v-if="ready">
     <HomeView v-if="isHome" />
+    <PurchaseLookupView v-else-if="isLookup" />
     <AdminLogin v-else-if="isLogin" @authenticated="onAuthenticated" />
     <AdminView v-else-if="isDashboard" />
   </template>
