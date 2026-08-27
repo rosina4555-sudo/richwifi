@@ -20,38 +20,38 @@ const form = ref({ name: '', address: '', themeIndex: 0 })
 const saving = ref(false)
 const error = ref('')
 
-// Plan editing state
-const editingPlan = ref(null)
-const planForm = ref({ price: 0 })
-
-// Plan creation state
+// Plan create state
 const showPlanForm = ref(false)
-const planCreatingFor = ref(null) // location object
-const newPlan = ref({ plan_key: 'daily', label: '1 Day', price: 5, validity_days: 1 })
+const planCreatingFor = ref(null)
+const newPlan = ref({ plan_key: 'daily', label: '1 Day', price: 5, validity_days: 1, validity_hours: 0 })
 const planSaving = ref(false)
 const planError = ref('')
 
 const PLAN_PRESETS = [
-  { key: 'hourly', label: '1 Hour', validity: 1 },
-  { key: 'daily', label: '1 Day', validity: 1 },
-  { key: 'weekly', label: '1 Week', validity: 7 },
-  { key: 'monthly', label: '1 Month', validity: 30 },
+  { key: 'hourly', label: '1 Hour', days: 0, hours: 1 },
+  { key: 'daily', label: '1 Day', days: 1, hours: 0 },
+  { key: 'weekly', label: '1 Week', days: 7, hours: 0 },
+  { key: 'monthly', label: '1 Month', days: 30, hours: 0 },
 ]
 
-// Update label and validity when plan_key changes
-const onPlanKeyChange = () => {
-  const preset = PLAN_PRESETS.find(p => p.key === newPlan.value.plan_key)
-  if (preset) {
-    newPlan.value.label = preset.label
-    newPlan.value.validity_days = preset.validity
-  }
-}
+// Plan edit state
+const editingPlan = ref(null)
+const planForm = ref({ label: '', price: 0, validity_days: 0, validity_hours: 0 })
 
 // Check if existing keys to disable them in the dropdown
 const existingPlanKeys = computed(() => {
   if (!planCreatingFor.value) return []
   return (planCreatingFor.value.plans || []).map(p => p.plan_key)
 })
+
+const onPlanKeyChange = () => {
+  const preset = PLAN_PRESETS.find(p => p.key === newPlan.value.plan_key)
+  if (preset) {
+    newPlan.value.label = preset.label
+    newPlan.value.validity_days = preset.days
+    newPlan.value.validity_hours = preset.hours
+  }
+}
 
 const fetchLocations = async () => {
   loading.value = true
@@ -117,28 +117,62 @@ const toggleLocation = async (loc) => {
   }
 }
 
+/* ── Plan management ────────────────────────────────── */
+const openPlanCreate = (loc) => {
+  planCreatingFor.value = loc
+  const existingKeys = (loc.plans || []).map(p => p.plan_key)
+  const availablePreset = PLAN_PRESETS.find(p => !existingKeys.includes(p.key)) || PLAN_PRESETS[0]
+  newPlan.value = {
+    plan_key: availablePreset.key,
+    label: availablePreset.label,
+    price: 5,
+    validity_days: availablePreset.days,
+    validity_hours: availablePreset.hours,
+  }
+  planError.value = ''
+  showPlanForm.value = true
+}
 
-
-const restoreLocation = async (loc) => {
+const savePlanCreate = async () => {
+  if (!planCreatingFor.value) return
+  planSaving.value = true
+  planError.value = ''
   try {
-    await adminApi.toggleLocation(loc.id, 1)
+    await adminApi.createPlan({
+      location_id: planCreatingFor.value.id,
+      plan_key: newPlan.value.plan_key,
+      label: newPlan.value.label.trim(),
+      price: Number(newPlan.value.price),
+      validity_days: Number(newPlan.value.validity_days),
+      validity_hours: Number(newPlan.value.validity_hours),
+    })
     await fetchLocations()
+    showPlanForm.value = false
   } catch (err) {
-    alert(err.message || 'Failed to restore')
+    planError.value = err.message || 'Failed to create plan'
+  } finally {
+    planSaving.value = false
   }
 }
 
-/* ── Plan management ────────────────────────────────── */
 const openPlanEdit = (plan) => {
   editingPlan.value = plan
-  planForm.value = { price: Number(plan.price) }
+  planForm.value = {
+    label: plan.plan_label || plan.label || '',
+    price: Number(plan.price),
+    validity_days: plan.validity_days ?? 0,
+    validity_hours: plan.validity_hours ?? 0,
+  }
 }
 
 const savePlan = async () => {
   if (!editingPlan.value) return
   try {
     await adminApi.updatePlan(editingPlan.value.plan_id || editingPlan.value.id, {
-      price: planForm.value.price,
+      label: planForm.value.label.trim(),
+      price: Number(planForm.value.price),
+      validity_days: Number(planForm.value.validity_days),
+      validity_hours: Number(planForm.value.validity_hours),
     })
     editingPlan.value = null
     await fetchLocations()
@@ -156,41 +190,11 @@ const togglePlan = async (plan) => {
   }
 }
 
-const openPlanCreate = (loc) => {
-  planCreatingFor.value = loc
-  // Determine which keys already exist
-  const existingKeys = (loc.plans || []).map(p => p.plan_key)
-  // Default to the first available preset
-  const availablePreset = PLAN_PRESETS.find(p => !existingKeys.includes(p.key)) || PLAN_PRESETS[0]
-  newPlan.value = {
-    plan_key: availablePreset.key,
-    label: availablePreset.label,
-    price: 5,
-    validity_days: availablePreset.validity,
-  }
-  planError.value = ''
-  showPlanForm.value = true
-}
-
-const savePlanCreate = async () => {
-  if (!planCreatingFor.value) return
-  planSaving.value = true
-  planError.value = ''
-  try {
-    await adminApi.createPlan({
-      location_id: planCreatingFor.value.id,
-      plan_key: newPlan.value.plan_key,
-      label: newPlan.value.label.trim(),
-      price: Number(newPlan.value.price),
-      validity_days: Number(newPlan.value.validity_days),
-    })
-    await fetchLocations()
-    showPlanForm.value = false
-  } catch (err) {
-    planError.value = err.message || 'Failed to create plan'
-  } finally {
-    planSaving.value = false
-  }
+const validityText = (days, hours) => {
+  const parts = []
+  if (days > 0) parts.push(days + 'd')
+  if (hours > 0) parts.push(hours + 'h')
+  return parts.join(' ') || '—'
 }
 </script>
 
@@ -292,16 +296,23 @@ const savePlanCreate = async () => {
             class="clay-well mt-1.5 w-full rounded-xl bg-brand/[0.04] px-4 py-2.5 text-sm font-medium text-brand-dark focus:ring-2 focus:ring-brand/30 focus:outline-none" />
         </label>
 
-        <!-- Validity -->
-        <label class="mt-3 block">
-          <span class="text-xs font-bold tracking-widest text-brand uppercase">Validity (days)</span>
-          <input v-model.number="newPlan.validity_days" type="number" min="1" step="1"
-            class="clay-well mt-1.5 w-full rounded-xl bg-brand/[0.04] px-4 py-2.5 text-sm font-medium text-brand-dark focus:ring-2 focus:ring-brand/30 focus:outline-none" />
-        </label>
+        <!-- Validity: Days + Hours -->
+        <div class="mt-3 flex gap-3">
+          <label class="flex-1">
+            <span class="text-xs font-bold tracking-widest text-brand uppercase">Days</span>
+            <input v-model.number="newPlan.validity_days" type="number" min="0" step="1"
+              class="clay-well mt-1.5 w-full rounded-xl bg-brand/[0.04] px-4 py-2.5 text-sm font-medium text-brand-dark focus:ring-2 focus:ring-brand/30 focus:outline-none" />
+          </label>
+          <label class="flex-1">
+            <span class="text-xs font-bold tracking-widest text-brand uppercase">Hours</span>
+            <input v-model.number="newPlan.validity_hours" type="number" min="0" max="23" step="1"
+              class="clay-well mt-1.5 w-full rounded-xl bg-brand/[0.04] px-4 py-2.5 text-sm font-medium text-brand-dark focus:ring-2 focus:ring-brand/30 focus:outline-none" />
+          </label>
+        </div>
 
         <button type="button"
           class="clay-btn mt-5 w-full rounded-xl bg-gradient-to-r from-brand to-accent py-2.5 text-sm font-extrabold text-white disabled:opacity-40"
-          :disabled="!newPlan.label.trim() || newPlan.price <= 0 || newPlan.validity_days <= 0 || planSaving"
+          :disabled="!newPlan.label.trim() || newPlan.price <= 0 || (newPlan.validity_days <= 0 && newPlan.validity_hours <= 0) || planSaving"
           @click="savePlanCreate">
           {{ planSaving ? 'Creating…' : 'Create Plan' }}
         </button>
@@ -318,14 +329,38 @@ const savePlanCreate = async () => {
             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
+
+        <!-- Label -->
         <label class="block">
+          <span class="text-xs font-bold tracking-widest text-brand uppercase">Label</span>
+          <input v-model="planForm.label" type="text"
+            class="clay-well mt-1.5 w-full rounded-xl bg-brand/[0.04] px-4 py-2.5 text-sm font-medium text-brand-dark focus:ring-2 focus:ring-brand/30 focus:outline-none" />
+        </label>
+
+        <!-- Price -->
+        <label class="mt-3 block">
           <span class="text-xs font-bold tracking-widest text-brand uppercase">Price (₵)</span>
           <input v-model.number="planForm.price" type="number" min="0" step="0.50"
             class="clay-well mt-1.5 w-full rounded-xl bg-brand/[0.04] px-4 py-2.5 text-sm font-medium text-brand-dark focus:ring-2 focus:ring-brand/30 focus:outline-none" />
         </label>
+
+        <!-- Validity: Days + Hours -->
+        <div class="mt-3 flex gap-3">
+          <label class="flex-1">
+            <span class="text-xs font-bold tracking-widest text-brand uppercase">Days</span>
+            <input v-model.number="planForm.validity_days" type="number" min="0" step="1"
+              class="clay-well mt-1.5 w-full rounded-xl bg-brand/[0.04] px-4 py-2.5 text-sm font-medium text-brand-dark focus:ring-2 focus:ring-brand/30 focus:outline-none" />
+          </label>
+          <label class="flex-1">
+            <span class="text-xs font-bold tracking-widest text-brand uppercase">Hours</span>
+            <input v-model.number="planForm.validity_hours" type="number" min="0" max="23" step="1"
+              class="clay-well mt-1.5 w-full rounded-xl bg-brand/[0.04] px-4 py-2.5 text-sm font-medium text-brand-dark focus:ring-2 focus:ring-brand/30 focus:outline-none" />
+          </label>
+        </div>
+
         <button type="button"
           class="clay-btn mt-4 w-full rounded-xl bg-gradient-to-r from-brand to-accent py-2.5 text-sm font-extrabold text-white"
-          @click="savePlan">Save Price</button>
+          @click="savePlan">Save Changes</button>
       </div>
     </div>
 
@@ -353,7 +388,7 @@ const savePlanCreate = async () => {
             <button type="button"
               class="rounded-lg px-2 py-1.5 text-[11px] font-semibold transition"
               :class="loc.is_active ? 'text-amber-600/70 hover:bg-amber-50 hover:text-amber-600' : 'text-emerald-600/70 hover:bg-emerald-50 hover:text-emerald-600'"
-              @click="loc.is_active ? toggleLocation(loc) : restoreLocation(loc)">
+              @click="toggleLocation(loc)">
               {{ loc.is_active ? 'Disable' : 'Restore' }}
             </button>
             <button type="button" class="rounded-lg px-2 py-1.5 text-[11px] font-semibold text-brand-dark/50 transition hover:bg-brand/5 hover:text-brand" @click="openEdit(loc)">Edit</button>
@@ -385,7 +420,7 @@ const savePlanCreate = async () => {
               <tr v-for="plan in loc.plans" :key="plan.plan_id || plan.id" class="border-b border-brand/5">
                 <td class="px-3 py-2 font-semibold text-brand-dark/70">{{ plan.plan_label || plan.label }}</td>
                 <td class="px-3 py-2 text-right font-bold text-brand cursor-pointer hover:underline" @click="openPlanEdit(plan)">{{ currency(plan.price) }}</td>
-                <td class="px-3 py-2 text-right text-brand-dark/50">{{ plan.validity_days }}d</td>
+                <td class="px-3 py-2 text-right text-brand-dark/50">{{ validityText(plan.validity_days, plan.validity_hours) }}</td>
                 <td class="px-3 py-2 text-right">
                   <span class="font-bold" :class="plan.available_stock > 0 ? 'text-emerald-600' : 'text-red-500'">
                     {{ plan.available_stock ?? '—' }}
@@ -400,7 +435,7 @@ const savePlanCreate = async () => {
                   </button>
                 </td>
                 <td class="px-3 py-2 text-right">
-                  <button type="button" class="text-[11px] font-semibold text-brand/70 hover:text-brand transition" @click="openPlanEdit(plan)">Edit price</button>
+                  <button type="button" class="text-[11px] font-semibold text-brand/70 hover:text-brand transition" @click="openPlanEdit(plan)">Edit</button>
                 </td>
               </tr>
             </tbody>
