@@ -137,9 +137,6 @@ const statusColor = (s) => ({
             >
               <div class="min-w-0 flex-1">
                 <span class="block truncate font-mono text-sm font-bold text-brand">{{ token.code }}</span>
-                <span v-if="token.expires_at" class="block text-[10px] text-brand-dark/40">
-                  Expires: {{ token.expires_at }}
-                </span>
               </div>
               <button
                 type="button"

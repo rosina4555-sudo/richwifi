@@ -388,7 +388,6 @@ const exportInventory = async () => {
                 <th class="px-3 py-2">Plan</th>
                 <th class="px-3 py-2">Status</th>
                 <th class="px-3 py-2">Created</th>
-                <th class="px-3 py-2">Expires</th>
               </tr>
             </thead>
             <tbody>
@@ -402,7 +401,6 @@ const exportInventory = async () => {
                   </span>
                 </td>
                 <td class="px-3 py-2 text-brand-dark/45">{{ (t.created_at || '').slice(0, 10) }}</td>
-                <td class="px-3 py-2 text-brand-dark/45">{{ (t.expires_at || '').slice(0, 10) || '—' }}</td>
               </tr>
             </tbody>
           </table>

@@ -159,7 +159,6 @@ const startPolling = () => {
         pollTimer = null
         accessCodes.value = (data.tokens || []).map((t) => ({
           code: t.code,
-          expires_at: t.expires_at,
         }))
         step.value = 'success'
       } else if (data.status === 'failed' || data.status === 'expired') {
@@ -519,9 +518,6 @@ const copyField = async (value, field) => {
                     >
                       <div class="min-w-0 flex-1">
                         <span class="block truncate font-mono text-xs font-bold text-brand">{{ token.code }}</span>
-                        <span v-if="token.expires_at" class="block text-[10px] text-brand-dark/40">
-                          Expires: {{ token.expires_at }}
-                        </span>
                       </div>
                       <button
                         type="button"
