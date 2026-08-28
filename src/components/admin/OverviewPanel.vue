@@ -49,7 +49,10 @@ const chartData = computed(() => {
   for (let i = 13; i >= 0; i--) {
     const date = new Date(now)
     date.setDate(date.getDate() - i)
-    const key = date.toISOString().slice(0, 10)
+    const yyyy = date.getFullYear()
+    const mm = String(date.getMonth() + 1).padStart(2, '0')
+    const dd = String(date.getDate()).padStart(2, '0')
+    const key = `${yyyy}-${mm}-${dd}`
     result.push({
       label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       value: salesMap[key] || 0,

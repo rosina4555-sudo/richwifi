@@ -10,7 +10,7 @@ const props = defineProps({
 
 const max = computed(() => Math.max(...props.data.map((d) => d.value), 1))
 
-// Y-axis labels (4 lines: 0%, 25%, 50%, 75%, 100%)
+// Y-axis labels (5 lines: 100%, 75%, 50%, 25%, 0%)
 const yLabels = computed(() => {
   const m = max.value
   const suffix = props.currency ? '₵' : ''
@@ -28,52 +28,73 @@ const formatValue = (v) => {
   return Number(v).toFixed(0)
 }
 
+// Compute bar height percentages (absolute positioning, no flex dependency)
+const barStyle = (d) => {
+  const pct = max.value > 0 ? (d.value / max.value) * 100 : 0
+  return {
+    height: `${pct}%`,
+    minHeight: d.value > 0 ? '4px' : '0',
+  }
+}
+
 // Only show every other label on mobile to avoid crowding
 const showLabel = (i) => {
   if (props.data.length <= 7) return true
   return i % 2 === 0
 }
+
+// Compute left position and width for each bar
+const barPosition = (i) => {
+  const count = props.data.length
+  const gap = 4 // px gap between bars
+  const totalGaps = (count - 1) * gap
+  const width = `calc((100% - ${totalGaps}px) / ${count})`
+  const left = `calc(${i} * (100% - ${totalGaps}px) / ${count} + ${i * gap}px)`
+  return { width, left }
+}
 </script>
 
 <template>
   <div class="w-full">
+    <!-- Chart with Y-axis -->
     <div class="flex gap-2" :style="{ height }">
-      <!-- Y-axis -->
+      <!-- Y-axis labels -->
       <div class="flex flex-col justify-between py-0.5 text-right" style="width: 3rem">
         <span v-for="(label, i) in yLabels" :key="i" class="text-[10px] font-medium text-brand-dark/35 leading-none">
           {{ label }}
         </span>
       </div>
 
-      <!-- Chart area -->
+      <!-- Chart area (relative container with explicit height from parent) -->
       <div class="relative flex-1 border-l border-b border-brand/10">
         <!-- Grid lines -->
         <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
           <div v-for="i in 5" :key="i" class="border-t border-brand/5 w-full" :class="i === 5 ? 'border-transparent' : ''"></div>
         </div>
 
-        <!-- Bars -->
-        <div class="absolute inset-0 flex items-end gap-[2px] sm:gap-1 px-1 pb-0">
+        <!-- Bars — absolutely positioned from bottom, percentage height resolves against this parent -->
+        <div class="absolute inset-0 px-1 pt-0 pb-0">
           <div
             v-for="(d, i) in data"
             :key="i"
-            class="group relative flex min-h-0 flex-1 flex-col items-center justify-end cursor-pointer"
+            class="group absolute bottom-0"
+            :style="{
+              ...barPosition(i),
+              height: '100%',
+            }"
           >
-            <!-- Value tooltip on hover -->
-            <div class="absolute bottom-full mb-1 hidden group-hover:block z-10">
+            <!-- Tooltip on hover -->
+            <div class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:block z-10">
               <div class="rounded-lg bg-brand-dark px-2 py-1 text-[10px] font-bold text-white whitespace-nowrap shadow-lg">
                 {{ formatValue(d.value) }}
               </div>
             </div>
 
-            <!-- Bar -->
+            <!-- Bar fill -->
             <div
-              class="w-full rounded-t-sm bg-gradient-to-t transition-all duration-300 group-hover:opacity-80 group-hover:scale-x-110"
+              class="absolute bottom-0 left-0 right-0 rounded-t-sm bg-gradient-to-t transition-all duration-300 group-hover:opacity-80"
               :class="barColor"
-              :style="{
-                height: `${max > 0 ? (d.value / max) * 100 : 0}%`,
-                minHeight: d.value > 0 ? '3px' : '0',
-              }"
+              :style="barStyle(d)"
             ></div>
           </div>
         </div>
@@ -81,14 +102,20 @@ const showLabel = (i) => {
     </div>
 
     <!-- X-axis labels -->
-    <div class="flex gap-[2px] sm:gap-1 ml-8 mt-1.5 px-1">
-      <span
-        v-for="(d, i) in data"
-        :key="i"
-        class="flex-1 truncate text-center text-[9px] sm:text-[10px] font-medium text-brand-dark/40"
-      >
-        {{ showLabel(i) ? d.label : '' }}
-      </span>
+    <div class="ml-8 mt-1.5 px-1" :style="{ position: 'relative' }">
+      <div class="flex" :style="{ position: 'relative', height: '1.2rem' }">
+        <span
+          v-for="(d, i) in data"
+          :key="i"
+          class="absolute truncate text-center text-[9px] sm:text-[10px] font-medium text-brand-dark/40"
+          :style="{
+            ...barPosition(i),
+            top: 0,
+          }"
+        >
+          {{ showLabel(i) ? d.label : '' }}
+        </span>
+      </div>
     </div>
   </div>
 </template>
