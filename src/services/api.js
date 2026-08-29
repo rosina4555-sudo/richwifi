@@ -227,6 +227,11 @@ export const adminApi = {
     const qs = new URLSearchParams(params).toString()
     return request('GET', `/api/admin/analytics/stock-alerts${qs ? '?' + qs : ''}`)
   },
+  getSmsLog: (params = {}) => {
+    const qs = new URLSearchParams(params).toString()
+    return request('GET', `/api/admin/analytics/sms-log${qs ? '?' + qs : ''}`)
+  },
+
   exportCsv: (params = {}) => {
     const qs = new URLSearchParams(params).toString()
     return fetch(`${API_BASE}/api/admin/analytics/export${qs ? '?' + qs : ''}`, {

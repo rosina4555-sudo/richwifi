@@ -13,6 +13,7 @@ const availablePlans = computed(() => props.location.plans || [])
 const selectedPlanId = ref(availablePlans.value[0]?.plan_id || availablePlans.value[0]?.id)
 const quantity = ref(1)
 const email = ref('')
+const phone = ref('')
 const step = ref('details') // 'details' | 'processing' | 'polling' | 'success' | 'cancelled' | 'error'
 const error = ref('')
 const orderId = ref(null)
@@ -41,8 +42,16 @@ const total = computed(() => subtotal.value)
 const validEmail = computed(
   () => !email.value.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()),
 )
+const validPhone = computed(() => {
+  const p = phone.value.replace(/[^0-9+]/g, '')
+  // Ghana: 0XXXXXXXXX (10 digits) or +233XXXXXXXXX or 233XXXXXXXXX (12 digits)
+  if (/^0\d{9}$/.test(p)) return true
+  if (/^233\d{9}$/.test(p)) return true
+  if (/^\+233\d{9}$/.test(p)) return true
+  return false
+})
 const inStock = computed(() => (Number(selectedPlan.value?.available_stock) || 0) > 0)
-const canPay = computed(() => validEmail.value && inStock.value && step.value === 'details')
+const canPay = computed(() => validEmail.value && validPhone.value && inStock.value && step.value === 'details')
 
 const changeQty = (delta) => {
   quantity.value = Math.min(MAX_QTY, Math.max(1, quantity.value + delta))
@@ -68,6 +77,7 @@ const pay = async () => {
       planId: selectedPlan.value.plan_id || selectedPlan.value.id,
       quantity: quantity.value,
       email: email.value.trim(),
+      phone: phone.value.trim(),
       idempotencyKey,
     })
 
@@ -202,6 +212,7 @@ watch(
     selectedPlanId.value = (props.location.plans || [])[0]?.plan_id || (props.location.plans || [])[0]?.id
     quantity.value = 1
     email.value = ''
+    phone.value = ''
     step.value = 'details'
     error.value = ''
     orderId.value = null
@@ -383,6 +394,27 @@ const copyField = async (value, field) => {
                   />
                   <span class="mt-1.5 block text-[11px] text-brand-dark/45">
                     Optional — we'll create one for you if skipped.
+                  </span>
+                </label>
+
+                <!-- Phone (required) -->
+                <label class="mt-3 block">
+                  <span class="text-xs font-bold tracking-widest text-brand uppercase">
+                    Phone number
+                    <span class="ml-1 rounded-full bg-red-50 px-1.5 py-0.5 text-[9px] font-bold text-red-500 normal-case tracking-normal">required</span>
+                  </span>
+                  <input
+                    v-model="phone"
+                    type="tel"
+                    autocomplete="tel"
+                    placeholder="0544 123 456"
+                    class="clay-well mt-2 w-full rounded-2xl bg-brand/[0.04] px-4 py-3 text-sm font-medium text-brand-dark placeholder:text-brand-dark/35 focus:bg-surface focus:ring-2 focus:ring-brand/40 focus:outline-none"
+                  />
+                  <span class="mt-1.5 block text-[11px] text-brand-dark/45">
+                    We'll send your ticket codes via SMS.
+                  </span>
+                  <span v-if="phone && !validPhone" class="mt-1 block text-[11px] text-red-500">
+                    Enter a valid Ghana phone number (e.g. 0544123456)
                   </span>
                 </label>
 
