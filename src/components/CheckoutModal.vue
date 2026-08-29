@@ -10,7 +10,8 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const availablePlans = computed(() => props.location.plans || [])
-const selectedPlanId = ref(availablePlans.value[0]?.plan_id || availablePlans.value[0]?.id)
+const firstInStockPlan = computed(() => availablePlans.value.find(p => (Number(p.available_stock) || 0) > 0) || availablePlans.value[0])
+const selectedPlanId = ref(firstInStockPlan.value?.plan_id || firstInStockPlan.value?.id)
 const quantity = ref(1)
 const email = ref('')
 const phone = ref('')
@@ -209,7 +210,9 @@ const resetAndClose = () => {
 watch(
   () => props.location,
   () => {
-    selectedPlanId.value = (props.location.plans || [])[0]?.plan_id || (props.location.plans || [])[0]?.id
+    const plans = props.location.plans || []
+    const inStock = plans.find(p => (Number(p.available_stock) || 0) > 0) || plans[0]
+    selectedPlanId.value = inStock?.plan_id || inStock?.id
     quantity.value = 1
     email.value = ''
     phone.value = ''
