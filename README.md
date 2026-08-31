@@ -3,7 +3,7 @@
 Wi-Fi hotspot ticketing platform. Customers purchase access tickets online, receive them via SMS, and connect through MikroTik hotspot.
 
 **Live:** [richwifi.com](https://richwifi.com)  
-**Backend:** [richwifi-backend](https://rosina4555-sudo/richwifi-backend)
+**Backend:** [richwifi-backend](https://github.com/rosina4555-sudo/richwifi-backend)
 
 ---
 
