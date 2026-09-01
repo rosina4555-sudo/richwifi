@@ -35,7 +35,7 @@ npm run dev             # http://localhost:5173 (proxies /api to backend)
 npm run build    # outputs to dist/
 ```
 
-Deploy `dist/` to any static host (Render, Netlify, etc).
+Deploy `dist/`
 
 ## Project Structure
 
