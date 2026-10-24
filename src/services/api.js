@@ -119,9 +119,8 @@ export const api = {
   // Orders
   createOrder: (data) => request('POST', '/api/orders', data),
   getOrderStatus: (orderId) => request('GET', `/api/orders/${orderId}/status`, null, { allow401: true }),
-  lookupOrder: (key) => request('POST', '/api/orders/lookup', { key }),
 
-  // Token lookup (phone-based, no OTP)
+  // Purchase lookup by phone number
   lookupTokens: (data) => request('POST', '/api/tokens/lookup', data),
 
   // Web Push

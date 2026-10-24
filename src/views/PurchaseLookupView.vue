@@ -3,7 +3,6 @@ import { ref, computed } from 'vue'
 import { api } from '../services/api'
 
 const phone = ref('')
-const reference = ref('')
 const loading = ref(false)
 const error = ref('')
 const searched = ref(false)
@@ -20,18 +19,14 @@ const validPhone = computed(() => {
 })
 
 const lookup = async () => {
-  if (!validPhone.value && !reference.value.trim()) return
+  if (!validPhone.value) return
 
   loading.value = true
   error.value = ''
   orders.value = []
 
   try {
-    const payload = {}
-    if (phone.value.trim()) payload.phone = phone.value.trim()
-    if (reference.value.trim()) payload.reference = reference.value.trim()
-
-    const res = await api.lookupTokens(payload)
+    const res = await api.lookupTokens({ phone: phone.value.trim() })
     if (!res.success) {
       error.value = res.error || 'No purchases found'
       return
@@ -89,30 +84,16 @@ const copyCode = async (code, i) => {
         />
       </label>
 
-      <label class="mt-3 block">
-        <span class="text-[10px] font-bold tracking-widest text-brand-dark/50 uppercase">
-          Reference
-          <span class="ml-1 rounded-full bg-brand/[0.06] px-1.5 py-0.5 text-[9px] font-bold text-brand/40 normal-case tracking-normal">optional</span>
-        </span>
-        <input
-          v-model="reference"
-          type="text"
-          placeholder="e.g. RW-TKFZ5J — narrows to one order"
-          class="clay-well mt-1.5 w-full rounded-xl bg-brand/[0.04] px-4 py-3 text-sm font-medium text-brand-dark placeholder:text-brand-dark/30 focus:ring-2 focus:ring-brand/30 focus:outline-none"
-          @keyup.enter="lookup"
-        />
-      </label>
-
       <button
         type="button"
         class="clay-btn mt-4 w-full rounded-xl bg-gradient-to-r from-brand to-accent py-3 text-sm font-extrabold text-white disabled:opacity-40"
-        :disabled="(!validPhone && !reference.trim()) || loading"
+        :disabled="!validPhone || loading"
         @click="lookup"
       >
         {{ loading ? 'Looking up…' : 'Find My Purchases' }}
       </button>
 
-      <p v-if="phone && !validPhone && !reference.trim()" class="mt-2 text-center text-[11px] text-red-500">
+      <p v-if="phone && !validPhone" class="mt-2 text-center text-[11px] text-red-500">
         Enter a valid Ghana phone number (e.g. 0544123456)
       </p>
 
@@ -123,7 +104,7 @@ const copyCode = async (code, i) => {
 
       <!-- Empty state -->
       <p v-if="searched && !error && !orders.length" class="mt-4 rounded-xl bg-brand/[0.04] px-3 py-3 text-center text-xs font-semibold text-brand-dark/50">
-        No purchases found for these details. Check the phone number or reference and try again.
+        No purchases found for this phone number. Check the number and try again.
       </p>
 
       <!-- Orders result -->

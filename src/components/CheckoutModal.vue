@@ -183,7 +183,7 @@ const startPolling = () => {
     if (pollCount * POLL_INTERVAL >= POLL_TIMEOUT) {
       clearInterval(pollTimer)
       pollTimer = null
-      error.value = 'Taking longer than expected. Your payment may still be processing — check back in a few minutes using your access key on My Tickets.'
+      error.value = 'Taking longer than expected. Your payment may still be processing — check back in a few minutes on My Purchases with the phone number you paid with.'
       step.value = 'error'
       return
     }
