@@ -71,7 +71,7 @@ const copyCode = async (code, i) => {
       <h1 class="font-heading text-2xl font-black tracking-tight text-white sm:text-3xl">
         Rich<span class="text-accent">WiFi</span>
       </h1>
-      <p class="mt-1 text-sm text-white/50">Access your purchases</p>
+      <p class="mt-1 text-sm text-white/50">Find your tickets anytime</p>
     </div>
 
     <!-- Lookup card -->
@@ -125,16 +125,11 @@ const copyCode = async (code, i) => {
           :key="order.id"
           class="rounded-2xl bg-brand/[0.04] p-4"
         >
-          <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-              <p class="font-heading text-sm font-bold text-brand">{{ order.plan_label }} · {{ order.location_name }}</p>
-              <p class="mt-0.5 text-[11px] text-brand-dark/45">
-                {{ currency(order.total_amount) }} · {{ formatDate(order.paid_at) }}
-              </p>
-            </div>
-            <span class="shrink-0 rounded-md bg-brand/[0.06] px-2 py-0.5 font-mono text-[10px] font-bold text-brand/70">
-              {{ order.paystack_ref }}
-            </span>
+          <div>
+            <p class="font-heading text-sm font-bold text-brand">{{ order.plan_label }} · {{ order.location_name }}</p>
+            <p class="mt-0.5 text-[11px] text-brand-dark/45">
+              {{ currency(order.total_amount) }} · {{ formatDate(order.paid_at) }}
+            </p>
           </div>
 
           <!-- Ticket codes -->
@@ -148,10 +143,10 @@ const copyCode = async (code, i) => {
                 <span class="block truncate font-mono text-sm font-bold text-brand">{{ token.code }}</span>
               </div>
               <span
-                v-if="token.status !== 'sold'"
+                v-if="token.status === 'used' || token.status === 'expired'"
                 class="rounded-md bg-amber-50 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-600 uppercase"
               >
-                {{ token.status }}
+                {{ token.status === 'used' ? 'Used' : 'Expired' }}
               </span>
               <button
                 type="button"
