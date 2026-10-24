@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { api } from '../services/api'
+import { ensureSubscribed } from '../services/push'
 
 const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ''
 
@@ -24,6 +25,8 @@ const paystackRef = ref(null)
 const accessCodes = ref([])
 const copiedIndex = ref(null)
 const copiedField = ref(null)
+// Non-fatal notice about push notification delivery (set during pay())
+const pushNotice = ref('')
 let pollTimer = null
 let pollCount = 0
 const POLL_INTERVAL = 3000 // 3 seconds
@@ -69,6 +72,26 @@ const pay = async () => {
   if (!canPay.value) return
   step.value = 'processing'
   error.value = ''
+  pushNotice.value = ''
+
+  // Start the push subscription IMMEDIATELY — the permission prompt needs this
+  // user gesture, and the subscription must exist before the payment webhook
+  // fires. Runs in parallel with order creation; never blocks payment.
+  const pushPromise = ensureSubscribed(phone.value.trim())
+    .then((res) => {
+      if (res.status === 'denied') {
+        pushNotice.value =
+          'Notifications are blocked, so we can\'t alert you here — your codes will still appear below after payment, and anytime on My Purchases with your phone number.'
+      } else if (res.status === 'unsupported') {
+        pushNotice.value =
+          'This browser can\'t receive push notifications — your codes will appear below after payment, and anytime on My Purchases with your phone number.'
+      } else if (res.status === 'error') {
+        pushNotice.value =
+          'Couldn\'t set up notifications — your codes will appear below after payment and on My Purchases.'
+      }
+      return res
+    })
+    .catch(() => ({ ok: false, status: 'error' }))
 
   try {
     const idempotencyKey = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -94,6 +117,10 @@ const pay = async () => {
       step.value = 'error'
       return
     }
+
+    // Ensure the subscription round-trip finished before payment completes, so
+    // there is no race where the webhook fires before the backend knows us.
+    await pushPromise
 
     // Step 2: Open Paystack popup inline
     openPaystackPopup()
@@ -225,6 +252,7 @@ watch(
     accessCodes.value = []
     copiedIndex.value = null
     copiedField.value = null
+    pushNotice.value = ''
   },
 )
 
@@ -414,12 +442,17 @@ const copyField = async (value, field) => {
                     class="clay-well mt-2 w-full rounded-2xl bg-brand/[0.04] px-4 py-3 text-sm font-medium text-brand-dark placeholder:text-brand-dark/35 focus:bg-surface focus:ring-2 focus:ring-brand/40 focus:outline-none"
                   />
                   <span class="mt-1.5 block text-[11px] text-brand-dark/45">
-                    We'll send your ticket codes via SMS.
+                    Your codes are pushed to this browser after payment — keep this number to find them anytime.
                   </span>
                   <span v-if="phone && !validPhone" class="mt-1 block text-[11px] text-red-500">
                     Enter a valid Ghana phone number (e.g. 0544123456)
                   </span>
                 </label>
+
+                <!-- Push delivery notice (only when notifications can't be set up) -->
+                <p v-if="pushNotice" class="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-relaxed font-semibold text-amber-700">
+                  🔔 {{ pushNotice }}
+                </p>
 
                 <!-- Order summary -->
                 <div class="clay-well mt-4 space-y-1.5 rounded-2xl bg-brand/[0.04] p-4 text-sm">

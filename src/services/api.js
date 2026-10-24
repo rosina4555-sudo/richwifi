@@ -121,9 +121,13 @@ export const api = {
   getOrderStatus: (orderId) => request('GET', `/api/orders/${orderId}/status`, null, { allow401: true }),
   lookupOrder: (key) => request('POST', '/api/orders/lookup', { key }),
 
-  // Token lookup (OTP)
-  requestOtp: (data) => request('POST', '/api/tokens/lookup/request', data),
-  verifyOtp: (data) => request('POST', '/api/tokens/lookup/verify', data),
+  // Token lookup (phone-based, no OTP)
+  lookupTokens: (data) => request('POST', '/api/tokens/lookup', data),
+
+  // Web Push
+  pushVapidKey: () => request('GET', '/api/push/vapid-public-key'),
+  pushSubscribe: (data) => request('POST', '/api/push/subscribe', data),
+  pushUnsubscribe: (data) => request('POST', '/api/push/unsubscribe', data),
 }
 
 /* ── Admin API (JWT required) ────────────────────────── */
@@ -230,6 +234,10 @@ export const adminApi = {
   getSmsLog: (params = {}) => {
     const qs = new URLSearchParams(params).toString()
     return request('GET', `/api/admin/analytics/sms-log${qs ? '?' + qs : ''}`)
+  },
+  getPushLog: (params = {}) => {
+    const qs = new URLSearchParams(params).toString()
+    return request('GET', `/api/admin/analytics/push-log${qs ? '?' + qs : ''}`)
   },
 
   exportCsv: (params = {}) => {

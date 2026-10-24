@@ -1,0 +1,22 @@
+{
+  "name": "RichWiFi",
+  "short_name": "RichWiFi",
+  "description": "Community hotspot — buy and access Wi-Fi tickets.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#170911",
+  "theme_color": "#6d0214",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

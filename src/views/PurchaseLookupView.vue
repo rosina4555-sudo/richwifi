@@ -1,30 +1,45 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { api } from '../services/api'
 
-const lookupKey = ref('')
+const phone = ref('')
+const reference = ref('')
 const loading = ref(false)
 const error = ref('')
-const order = ref(null)
+const searched = ref(false)
+const orders = ref([])
 const copiedCode = ref(null)
 
+const validPhone = computed(() => {
+  const p = phone.value.replace(/[^0-9+]/g, '')
+  // Ghana: 0XXXXXXXXX (10 digits), +233XXXXXXXXX or 233XXXXXXXXX (12 digits)
+  if (/^0\d{9}$/.test(p)) return true
+  if (/^233\d{9}$/.test(p)) return true
+  if (/^\+233\d{9}$/.test(p)) return true
+  return false
+})
+
 const lookup = async () => {
-  const key = lookupKey.value.trim()
-  if (!key) return
+  if (!validPhone.value && !reference.value.trim()) return
 
   loading.value = true
   error.value = ''
-  order.value = null
+  orders.value = []
 
   try {
-    const res = await api.lookupOrder(key)
+    const payload = {}
+    if (phone.value.trim()) payload.phone = phone.value.trim()
+    if (reference.value.trim()) payload.reference = reference.value.trim()
+
+    const res = await api.lookupTokens(payload)
     if (!res.success) {
-      error.value = res.error || 'No purchase found'
+      error.value = res.error || 'No purchases found'
       return
     }
-    order.value = res.data
+    orders.value = res.data?.orders || []
+    searched.value = true
   } catch (err) {
-    error.value = err.message || 'No purchase found. Please check your access key or reference.'
+    error.value = err.message || 'Could not look up your purchases. Please try again.'
   } finally {
     loading.value = false
   }
@@ -32,20 +47,15 @@ const lookup = async () => {
 
 const currency = (v) => `₵${Number(v).toFixed(2)}`
 
+const formatDate = (d) => (d ? d.slice(0, 16).replace('T', ' ') : '—')
+
 const copyCode = async (code, i) => {
   try {
     await navigator.clipboard.writeText(code)
     copiedCode.value = i
     setTimeout(() => { if (copiedCode.value === i) copiedCode.value = null }, 1500)
-  } catch { /* ignore */ }
+  } catch { /* clipboard unavailable */ }
 }
-
-const statusColor = (s) => ({
-  paid: 'bg-emerald-50 text-emerald-700',
-  pending: 'bg-amber-50 text-amber-700',
-  failed: 'bg-red-50 text-red-600',
-  refunded: 'bg-purple-50 text-purple-700',
-}[s] || 'bg-gray-50 text-gray-500')
 </script>
 
 <template>
@@ -55,24 +65,39 @@ const statusColor = (s) => ({
       <h1 class="font-heading text-2xl font-black tracking-tight text-white sm:text-3xl">
         Rich<span class="text-accent">WiFi</span>
       </h1>
-      <p class="mt-1 text-sm text-white/50">Access your purchase</p>
+      <p class="mt-1 text-sm text-white/50">Access your purchases</p>
     </div>
 
     <!-- Lookup card -->
     <div class="clay w-full max-w-md rounded-3xl bg-surface p-6 sm:p-8">
       <h2 class="font-heading text-lg font-bold tracking-tight text-brand">
-        🔑 Find My Purchase
+        🎫 My Purchases
       </h2>
       <p class="mt-1 text-xs text-brand-dark/50">
-        Enter your access key or Paystack reference from your purchase confirmation.
+        Enter the phone number you paid with to see your ticket codes.
       </p>
 
       <label class="mt-4 block">
-        <span class="text-[10px] font-bold tracking-widest text-brand-dark/50 uppercase">Access Key or Reference</span>
+        <span class="text-[10px] font-bold tracking-widest text-brand-dark/50 uppercase">Phone number</span>
         <input
-          v-model="lookupKey"
+          v-model="phone"
+          type="tel"
+          autocomplete="tel"
+          placeholder="e.g. 0544 123 456"
+          class="clay-well mt-1.5 w-full rounded-xl bg-brand/[0.04] px-4 py-3 text-sm font-medium text-brand-dark placeholder:text-brand-dark/30 focus:ring-2 focus:ring-brand/30 focus:outline-none"
+          @keyup.enter="lookup"
+        />
+      </label>
+
+      <label class="mt-3 block">
+        <span class="text-[10px] font-bold tracking-widest text-brand-dark/50 uppercase">
+          Reference
+          <span class="ml-1 rounded-full bg-brand/[0.06] px-1.5 py-0.5 text-[9px] font-bold text-brand/40 normal-case tracking-normal">optional</span>
+        </span>
+        <input
+          v-model="reference"
           type="text"
-          placeholder="e.g. ak_40D3FC24FCE60CAAE… or RW-TKFZ5J"
+          placeholder="e.g. RW-TKFZ5J — narrows to one order"
           class="clay-well mt-1.5 w-full rounded-xl bg-brand/[0.04] px-4 py-3 text-sm font-medium text-brand-dark placeholder:text-brand-dark/30 focus:ring-2 focus:ring-brand/30 focus:outline-none"
           @keyup.enter="lookup"
         />
@@ -81,55 +106,47 @@ const statusColor = (s) => ({
       <button
         type="button"
         class="clay-btn mt-4 w-full rounded-xl bg-gradient-to-r from-brand to-accent py-3 text-sm font-extrabold text-white disabled:opacity-40"
-        :disabled="!lookupKey.trim() || loading"
+        :disabled="(!validPhone && !reference.trim()) || loading"
         @click="lookup"
       >
-        {{ loading ? 'Looking up…' : 'Find Purchase' }}
+        {{ loading ? 'Looking up…' : 'Find My Purchases' }}
       </button>
+
+      <p v-if="phone && !validPhone && !reference.trim()" class="mt-2 text-center text-[11px] text-red-500">
+        Enter a valid Ghana phone number (e.g. 0544123456)
+      </p>
 
       <!-- Error -->
       <p v-if="error" class="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">
         {{ error }}
       </p>
 
-      <!-- Order result -->
-      <div v-if="order" class="mt-5 space-y-4">
-        <!-- Status + meta -->
-        <div class="rounded-2xl bg-brand/[0.04] p-4">
-          <div class="flex items-center justify-between">
-            <p class="font-heading text-base font-bold text-brand">Your Purchase</p>
-            <span :class="['inline-block rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase', statusColor(order.status)]">
-              {{ order.status }}
+      <!-- Empty state -->
+      <p v-if="searched && !error && !orders.length" class="mt-4 rounded-xl bg-brand/[0.04] px-3 py-3 text-center text-xs font-semibold text-brand-dark/50">
+        No purchases found for these details. Check the phone number or reference and try again.
+      </p>
+
+      <!-- Orders result -->
+      <div v-if="orders.length" class="mt-5 space-y-4">
+        <div
+          v-for="order in orders"
+          :key="order.id"
+          class="rounded-2xl bg-brand/[0.04] p-4"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <p class="font-heading text-sm font-bold text-brand">{{ order.plan_label }} · {{ order.location_name }}</p>
+              <p class="mt-0.5 text-[11px] text-brand-dark/45">
+                {{ currency(order.total_amount) }} · {{ formatDate(order.paid_at) }}
+              </p>
+            </div>
+            <span class="shrink-0 rounded-md bg-brand/[0.06] px-2 py-0.5 font-mono text-[10px] font-bold text-brand/70">
+              {{ order.paystack_ref }}
             </span>
           </div>
-          <div class="mt-3 space-y-1.5 text-xs">
-            <div class="flex justify-between">
-              <span class="text-brand-dark/50">Location</span>
-              <span class="font-semibold text-brand-dark/80">{{ order.location }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-brand-dark/50">Plan</span>
-              <span class="font-semibold text-brand-dark/80">{{ order.plan }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-brand-dark/50">Amount</span>
-              <span class="font-bold text-brand">{{ currency(order.amount) }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-brand-dark/50">Reference</span>
-              <span class="font-mono font-semibold text-brand-dark/80">{{ order.reference }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-brand-dark/50">Purchased</span>
-              <span class="text-brand-dark/70">{{ order.purchasedAt }}</span>
-            </div>
-          </div>
-        </div>
 
-        <!-- Tickets -->
-        <div v-if="order.tokens && order.tokens.length" class="rounded-2xl bg-brand/[0.04] p-4">
-          <p class="text-[11px] font-bold tracking-widest text-brand uppercase">Your Tickets</p>
-          <ul class="mt-2 space-y-1.5">
+          <!-- Ticket codes -->
+          <ul v-if="order.tokens && order.tokens.length" class="mt-3 space-y-1.5">
             <li
               v-for="(token, i) in order.tokens"
               :key="token.code"
@@ -138,20 +155,24 @@ const statusColor = (s) => ({
               <div class="min-w-0 flex-1">
                 <span class="block truncate font-mono text-sm font-bold text-brand">{{ token.code }}</span>
               </div>
+              <span
+                v-if="token.status !== 'sold'"
+                class="rounded-md bg-amber-50 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-600 uppercase"
+              >
+                {{ token.status }}
+              </span>
               <button
                 type="button"
                 class="flex shrink-0 items-center gap-1 rounded-lg bg-brand/[0.06] px-2 py-1 text-[10px] font-bold text-brand transition hover:bg-brand/15"
-                @click="copyCode(token.code, i)"
+                @click="copyCode(token.code, `${order.id}-${i}`)"
               >
-                {{ copiedCode === i ? '✓ Copied' : 'Copy' }}
+                {{ copiedCode === `${order.id}-${i}` ? '✓ Copied' : 'Copy' }}
               </button>
             </li>
           </ul>
-        </div>
-
-        <!-- Pending / not paid -->
-        <div v-else-if="order.status === 'pending'" class="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
-          Payment is still pending. Your tickets will appear here once payment is confirmed.
+          <p v-else class="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-700">
+            No active tickets on this order.
+          </p>
         </div>
       </div>
     </div>
