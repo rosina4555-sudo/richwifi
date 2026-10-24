@@ -256,7 +256,7 @@ const closeCheckout = () => {
             <p class="text-[10px] font-bold tracking-widest text-brand/50 uppercase">Support</p>
             <ul class="mt-1.5 space-y-1.5">
               <li><a href="mailto:support@richwifi.com" class="text-[11px] font-medium text-brand-dark/55 transition hover:text-accent">Email Us</a></li>
-              <li><a href="tel:+1234567890" class="text-[11px] font-medium text-brand-dark/55 transition hover:text-accent">Call Us</a></li>
+              <li><a href="tel:+233 53 720 4692" class="text-[11px] font-medium text-brand-dark/55 transition hover:text-accent">Call Us</a></li>
             </ul>
           </div>
         </div>
