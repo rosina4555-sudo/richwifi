@@ -20,6 +20,7 @@ const step = ref('details') // 'details' | 'processing' | 'polling' | 'success' 
 const error = ref('')
 const orderId = ref(null)
 const accessCode = ref(null)
+const paystackRef = ref(null) // only for the My Purchases deep link — never displayed
 const accessCodes = ref([])
 const copiedIndex = ref(null)
 // Non-fatal notice about push notification delivery (set during pay())
@@ -105,6 +106,7 @@ const pay = async () => {
     const orderData = res.data || res
     orderId.value = orderData.orderId || orderData.id
     accessCode.value = orderData.accessCode
+    paystackRef.value = orderData.reference || null
 
     if (!accessCode.value) {
       // Paystack unavailable — show simulation info
@@ -242,6 +244,7 @@ watch(
     error.value = ''
     orderId.value = null
     accessCode.value = null
+    paystackRef.value = null
     accessCodes.value = []
     copiedIndex.value = null
     pushNotice.value = ''
@@ -571,7 +574,7 @@ const copyCode = async (code, i) => {
                     <span class="font-extrabold text-brand">{{ phone.trim() }}</span>, the phone number you paid with.
                   </p>
                   <a
-                    :href="'#/my-purchases?phone=' + encodeURIComponent(phone.trim())"
+                    :href="'#/my-purchases?phone=' + encodeURIComponent(phone.trim()) + (paystackRef ? '&ref=' + encodeURIComponent(paystackRef) : '')"
                     class="clay-btn mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-brand to-accent py-2.5 text-xs font-extrabold tracking-wide text-white"
                     @click="$emit('close')"
                   >

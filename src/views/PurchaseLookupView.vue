@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { api } from '../services/api'
 
 const phone = ref('')
@@ -8,6 +8,7 @@ const error = ref('')
 const searched = ref(false)
 const orders = ref([])
 const copiedCode = ref(null)
+const highlightRef = ref(null) // order highlighted as "just purchased"
 
 const validPhone = computed(() => {
   const p = phone.value.replace(/[^0-9+]/g, '')
@@ -40,15 +41,30 @@ const lookup = async () => {
   }
 }
 
-// Prefill from deep link (e.g. #/my-purchases?phone=0544123456 from the
-// purchase success screen) and run the lookup right away.
-onMounted(() => {
-  const match = window.location.hash.match(/[?&]phone=([^&]+)/)
-  if (!match) return
-  const p = decodeURIComponent(match[1]).replace(/[^0-9+\s]/g, '')
+// Deep link (e.g. #/my-purchases?phone=0544123456&ref=RW-ABC123 from the
+// push notification or the purchase success screen): prefill the phone,
+// run the lookup right away, and highlight the just-purchased order.
+onMounted(async () => {
+  const hash = window.location.hash
+  const phoneMatch = hash.match(/[?&]phone=([^&]+)/)
+  if (!phoneMatch) return
+
+  const p = decodeURIComponent(phoneMatch[1]).replace(/[^0-9+\s]/g, '')
   if (!p) return
   phone.value = p
-  if (validPhone.value) lookup()
+  if (!validPhone.value) return
+
+  const refMatch = hash.match(/[?&]ref=([^&]+)/)
+  const wantedRef = refMatch ? decodeURIComponent(refMatch[1]) : ''
+
+  await lookup()
+  if (!orders.value.length) return
+
+  const target = (wantedRef && orders.value.find((o) => o.paystack_ref === wantedRef)) || orders.value[0]
+  if (!target) return
+  highlightRef.value = target.paystack_ref
+  await nextTick()
+  document.getElementById(`order-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 })
 
 const currency = (v) => `₵${Number(v).toFixed(2)}`
@@ -122,14 +138,26 @@ const copyCode = async (code, i) => {
       <div v-if="orders.length" class="mt-5 space-y-4">
         <div
           v-for="order in orders"
+          :id="`order-${order.id}`"
           :key="order.id"
-          class="rounded-2xl bg-brand/[0.04] p-4"
+          class="rounded-2xl p-4 transition-all duration-300"
+          :class="order.paystack_ref === highlightRef
+            ? 'bg-emerald-50/[0.08] ring-2 ring-emerald-400/60 shadow-lg shadow-emerald-500/10'
+            : 'bg-brand/[0.04]'"
         >
-          <div>
-            <p class="font-heading text-sm font-bold text-brand">{{ order.plan_label }} · {{ order.location_name }}</p>
-            <p class="mt-0.5 text-[11px] text-brand-dark/45">
-              {{ currency(order.total_amount) }} · {{ formatDate(order.paid_at) }}
-            </p>
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <p class="font-heading text-sm font-bold text-brand">{{ order.plan_label }} · {{ order.location_name }}</p>
+              <p class="mt-0.5 text-[11px] text-brand-dark/45">
+                {{ currency(order.total_amount) }} · {{ formatDate(order.paid_at) }}
+              </p>
+            </div>
+            <span
+              v-if="order.paystack_ref === highlightRef"
+              class="shrink-0 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 px-2.5 py-1 text-[9px] font-extrabold tracking-wide text-white uppercase shadow-sm"
+            >
+              🎉 Just purchased
+            </span>
           </div>
 
           <!-- Ticket codes -->
@@ -140,7 +168,12 @@ const copyCode = async (code, i) => {
               class="flex items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2 shadow-sm"
             >
               <div class="min-w-0 flex-1">
-                <span class="block truncate font-mono text-sm font-bold text-brand">{{ token.code }}</span>
+                <span
+                  class="block truncate font-mono text-sm font-bold"
+                  :class="order.paystack_ref === highlightRef ? 'text-emerald-700' : 'text-brand'"
+                >
+                  {{ token.code }}
+                </span>
               </div>
               <span
                 v-if="token.status === 'used' || token.status === 'expired'"
