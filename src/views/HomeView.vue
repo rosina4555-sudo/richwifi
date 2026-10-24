@@ -295,8 +295,8 @@ const closeCheckout = () => {
               <h3 class="font-heading text-xs font-bold tracking-widest text-brand uppercase">Contact</h3>
               <ul class="mt-3 space-y-2 text-sm font-medium text-brand-dark/60">
                 <li>support@richwifi.com</li>
-                <li>+1 (234) 567-890</li>
-                <li>124 Main Street, Cityville</li>
+                <li>+233 53 720 4692</li>
+                <li>Sunyani, Ghana</li>
               </ul>
             </div>
           </div>
