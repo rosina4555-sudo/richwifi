@@ -20,11 +20,8 @@ const step = ref('details') // 'details' | 'processing' | 'polling' | 'success' 
 const error = ref('')
 const orderId = ref(null)
 const accessCode = ref(null)
-const accessKey = ref(null)
-const paystackRef = ref(null)
 const accessCodes = ref([])
 const copiedIndex = ref(null)
-const copiedField = ref(null)
 // Non-fatal notice about push notification delivery (set during pay())
 const pushNotice = ref('')
 let pollTimer = null
@@ -108,8 +105,6 @@ const pay = async () => {
     const orderData = res.data || res
     orderId.value = orderData.orderId || orderData.id
     accessCode.value = orderData.accessCode
-    accessKey.value = orderData.accessKey
-    paystackRef.value = orderData.reference
 
     if (!accessCode.value) {
       // Paystack unavailable — show simulation info
@@ -247,11 +242,8 @@ watch(
     error.value = ''
     orderId.value = null
     accessCode.value = null
-    accessKey.value = null
-    paystackRef.value = null
     accessCodes.value = []
     copiedIndex.value = null
-    copiedField.value = null
     pushNotice.value = ''
   },
 )
@@ -280,17 +272,6 @@ const copyCode = async (code, i) => {
   }
 }
 
-const copyField = async (value, field) => {
-  try {
-    await navigator.clipboard.writeText(value)
-    copiedField.value = field
-    setTimeout(() => {
-      if (copiedField.value === field) copiedField.value = null
-    }, 1500)
-  } catch {
-    /* clipboard unavailable — ignore */
-  }
-}
 </script>
 
 <template>
@@ -441,13 +422,19 @@ const copyField = async (value, field) => {
                     placeholder="0544 123 456"
                     class="clay-well mt-2 w-full rounded-2xl bg-brand/[0.04] px-4 py-3 text-sm font-medium text-brand-dark placeholder:text-brand-dark/35 focus:bg-surface focus:ring-2 focus:ring-brand/40 focus:outline-none"
                   />
-                  <span class="mt-1.5 block text-[11px] text-brand-dark/45">
-                    Your codes are pushed to this browser after payment — keep this number to find them anytime.
-                  </span>
                   <span v-if="phone && !validPhone" class="mt-1 block text-[11px] text-red-500">
                     Enter a valid Ghana phone number (e.g. 0544123456)
                   </span>
                 </label>
+
+                <!-- Important: the phone number is the lookup key -->
+                <div class="clay-well mt-2.5 flex gap-2.5 rounded-2xl bg-brand/[0.05] p-3">
+                  <span class="text-base leading-none">📌</span>
+                  <p class="text-[11px] leading-relaxed font-semibold text-brand-dark/70">
+                    <span class="font-extrabold text-brand">Important —</span> this phone number is how you'll find your ticket codes later on
+                    <span class="font-extrabold text-brand">My Purchases</span>. Use the exact number you'll check with — no codes or passwords to remember.
+                  </p>
+                </div>
 
                 <!-- Push delivery notice (only when notifications can't be set up) -->
                 <p v-if="pushNotice" class="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-relaxed font-semibold text-amber-700">
@@ -539,44 +526,13 @@ const copyField = async (value, field) => {
                   {{ quantity }} × {{ selectedPlan.plan_label || selectedPlan.label }} ticket{{ quantity > 1 ? 's' : '' }}
                 </p>
                 <p class="mt-1 max-w-[18rem] text-sm text-brand-dark/55">
-                  Payment confirmed! Here are your access codes.
+                  Payment confirmed! Here are your ticket codes.
                 </p>
 
-                <!-- Access details (save for later) -->
+                <!-- Ticket codes -->
                 <div class="clay-well mt-4 w-full rounded-2xl bg-brand/[0.04] p-4">
                   <p class="text-left text-[11px] font-bold tracking-widest text-brand uppercase">
-                    🔑 Save these to access your purchase later
-                  </p>
-                  <div class="mt-2 space-y-1.5">
-                    <div v-if="paystackRef" class="flex items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2">
-                      <div class="min-w-0 flex-1">
-                        <span class="block text-[10px] font-bold text-brand-dark/40 uppercase">Reference</span>
-                        <span class="block truncate font-mono text-xs font-bold text-brand">{{ paystackRef }}</span>
-                      </div>
-                      <button type="button"
-                        class="flex shrink-0 items-center gap-1 rounded-lg bg-brand/[0.06] px-2 py-1 text-[10px] font-bold text-brand transition hover:bg-brand/15"
-                        @click="copyField(paystackRef, 'ref')">
-                        {{ copiedField === 'ref' ? '✓' : 'Copy' }}
-                      </button>
-                    </div>
-                    <div v-if="accessKey" class="flex items-center justify-between gap-2 rounded-xl bg-surface px-3 py-2">
-                      <div class="min-w-0 flex-1">
-                        <span class="block text-[10px] font-bold text-brand-dark/40 uppercase">Access Key</span>
-                        <span class="block truncate font-mono text-[11px] font-bold text-brand">{{ accessKey }}</span>
-                      </div>
-                      <button type="button"
-                        class="flex shrink-0 items-center gap-1 rounded-lg bg-brand/[0.06] px-2 py-1 text-[10px] font-bold text-brand transition hover:bg-brand/15"
-                        @click="copyField(accessKey, 'key')">
-                        {{ copiedField === 'key' ? '✓' : 'Copy' }}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Access tickets -->
-                <div class="clay-well mt-3 w-full rounded-2xl bg-brand/[0.04] p-4">
-                  <p class="text-left text-[11px] font-bold tracking-widest text-brand uppercase">
-                    Your tickets
+                    🎟️ Your ticket codes
                   </p>
                   <ul class="mt-2 space-y-1.5">
                     <li
@@ -605,9 +561,30 @@ const copyField = async (value, field) => {
                   </ul>
                 </div>
 
+                <!-- Loud reminder: look up by phone anytime -->
+                <div class="mt-4 w-full rounded-2xl bg-gradient-to-br from-brand/[0.07] to-accent/[0.07] p-4 text-left ring-1 ring-brand/15">
+                  <p class="text-[11px] font-bold tracking-widest text-brand uppercase">
+                    📱 Find these codes anytime
+                  </p>
+                  <p class="mt-1.5 text-[11px] leading-relaxed text-brand-dark/65">
+                    Nothing to save or remember — look up your tickets anytime with just
+                    <span class="font-extrabold text-brand">{{ phone.trim() }}</span>, the phone number you paid with.
+                  </p>
+                  <a
+                    :href="'#/my-purchases?phone=' + encodeURIComponent(phone.trim())"
+                    class="clay-btn mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-brand to-accent py-2.5 text-xs font-extrabold tracking-wide text-white"
+                    @click="$emit('close')"
+                  >
+                    Open My Purchases
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  </a>
+                </div>
+
                 <button
                   type="button"
-                  class="clay-btn mt-5 w-full rounded-2xl bg-gradient-to-r from-brand to-accent py-3 text-sm font-extrabold tracking-wide text-white"
+                  class="clay-btn mt-4 w-full rounded-2xl bg-surface py-3 text-sm font-extrabold tracking-wide text-brand ring-1 ring-brand/15 transition hover:bg-brand/5"
                   @click="$emit('close')"
                 >
                   Done

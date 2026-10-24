@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { api } from '../services/api'
 
 const phone = ref('')
@@ -39,6 +39,17 @@ const lookup = async () => {
     loading.value = false
   }
 }
+
+// Prefill from deep link (e.g. #/my-purchases?phone=0544123456 from the
+// purchase success screen) and run the lookup right away.
+onMounted(() => {
+  const match = window.location.hash.match(/[?&]phone=([^&]+)/)
+  if (!match) return
+  const p = decodeURIComponent(match[1]).replace(/[^0-9+\s]/g, '')
+  if (!p) return
+  phone.value = p
+  if (validPhone.value) lookup()
+})
 
 const currency = (v) => `₵${Number(v).toFixed(2)}`
 
